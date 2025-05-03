@@ -1,5 +1,5 @@
 import IUserRepository from "../../domain/repositories/IUserRepository";
-import api from "./userApi";
+import api from "./UserApi";
 
 export default class UserRepository extends IUserRepository {
     async login(email, password) {
