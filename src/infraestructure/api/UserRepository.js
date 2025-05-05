@@ -26,11 +26,11 @@ export default class UserRepository extends IUserRepository {
             }
         }
 
-        if (userData.profilePhoto && userData.profilePhoto.uri) {
+        if (userData.profilePhoto) {
             formData.append("profilePhoto", {
                 uri: userData.profilePhoto.uri,
-                name: userData.profilePhoto.name || "photo.jpg",
-                type: userData.profilePhoto.type || "image/jpeg"
+                name: "photo.jpg",
+                type: "image/jpeg"
             });
         }
 
