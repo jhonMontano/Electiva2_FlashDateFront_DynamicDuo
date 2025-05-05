@@ -1,17 +1,24 @@
 import React, { useState } from "react";
 import {
-  Platform, Text, TextInput, TouchableOpacity, ScrollView
+  Platform,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Button,
+  Image,
+  View,
 } from "react-native";
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { launchImageLibrary } from 'react-native-image-picker';
+import DateTimePicker from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
 import { globalStyles } from "../../shared/globalStyles";
 import UserRepository from "../../infraestructure/api/UserRepository";
 import CustomModal from "../components/CustomModal";
 
 let DatePickerWeb;
-if (Platform.OS === 'web') {
-  DatePickerWeb = require('react-datepicker').default;
-  require('react-datepicker/dist/react-datepicker.css');
+if (Platform.OS === "web") {
+  DatePickerWeb = require("react-datepicker").default;
+  require("react-datepicker/dist/react-datepicker.css");
 }
 
 export default function RegisterScreen({ navigation }) {
@@ -37,7 +44,18 @@ export default function RegisterScreen({ navigation }) {
   };
 
   const validateFields = () => {
-    if (!name || !lastName || !birthday || !email || !password || !gender || !preferences || !country || !state || !city) {
+    if (
+      !name ||
+      !lastName ||
+      !birthday ||
+      !email ||
+      !password ||
+      !gender ||
+      !preferences ||
+      !country ||
+      !state ||
+      !city
+    ) {
       showModal("Required fields", "Please complete all required fields.");
       return false;
     }
@@ -69,7 +87,7 @@ export default function RegisterScreen({ navigation }) {
         gender,
         preferences: preferences.split(","),
         location: { country, state, city },
-        profilePhoto
+        profilePhoto,
       });
 
       showModal("Success", "Registration successful. You can now log in.");
@@ -98,21 +116,34 @@ export default function RegisterScreen({ navigation }) {
     setShowDatePicker(false);
   };
 
-  const handleProfilePhotoSelect = () => {
-    launchImageLibrary({ mediaType: 'photo' }, (response) => {
-      if (response.assets && response.assets.length > 0) {
-        const asset = response.assets[0];
-        setProfilePhoto({
-          uri: asset.uri,
-          name: asset.fileName || "photo.jpg",
-          type: asset.type
-        });
-      }
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== "granted") {
+      alert("Se requiere permiso para acceder a la galería.");
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
     });
+
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      setProfilePhoto(uri);
+    }
   };
 
   return (
-    <ScrollView contentContainerStyle={[globalStyles.overlay, { minHeight: '140vh' }]}>
+    <ScrollView
+      contentContainerStyle={{
+        ...globalStyles.container,
+        paddingVertical: 40,
+      }}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={globalStyles.title}>🔥 Register 🔥</Text>
 
       <TextInput placeholder="Name" value={name} onChangeText={setName} style={globalStyles.input} />
@@ -127,8 +158,8 @@ export default function RegisterScreen({ navigation }) {
         />
       </TouchableOpacity>
 
-      {showDatePicker && (
-        Platform.OS === 'web' ? (
+      {showDatePicker &&
+        (Platform.OS === "web" ? (
           <DatePickerWeb
             selected={birthday}
             onChange={(date) => {
@@ -148,25 +179,39 @@ export default function RegisterScreen({ navigation }) {
             display={Platform.OS === "ios" ? "spinner" : "default"}
             onChange={handleDateChange}
           />
-        )
-      )}
+        ))}
 
-      <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={globalStyles.input} keyboardType="email-address" autoCapitalize="none" />
-      <TextInput placeholder="Password" value={password} onChangeText={setPassword} style={globalStyles.input} secureTextEntry />
+      <TextInput
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        style={globalStyles.input}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
+      <TextInput
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        style={globalStyles.input}
+        secureTextEntry
+      />
       <TextInput placeholder="Gender (Male/Female)" value={gender} onChangeText={setGender} style={globalStyles.input} />
-      <TextInput placeholder="Preferences (Male,Female)" value={preferences} onChangeText={setPreferences} style={globalStyles.input} />
+      <TextInput
+        placeholder="Preferences (Male,Female)"
+        value={preferences}
+        onChangeText={setPreferences}
+        style={globalStyles.input}
+      />
       <TextInput placeholder="Country" value={country} onChangeText={setCountry} style={globalStyles.input} />
       <TextInput placeholder="State" value={state} onChangeText={setState} style={globalStyles.input} />
       <TextInput placeholder="City" value={city} onChangeText={setCity} style={globalStyles.input} />
 
-      <TouchableOpacity onPress={handleProfilePhotoSelect}>
-        <TextInput
-          placeholder="Profile photo"
-          value={profilePhoto ? "✅ Image selected" : ""}
-          style={globalStyles.input}
-          editable={false}
-        />
-      </TouchableOpacity>
+      <View style={styles.container}>
+        <Text style={styles.title}>Select a profile picture</Text>
+        <Button title="Select image" onPress={pickImage} />
+        {profilePhoto ? <Image source={{ uri: profilePhoto }} style={styles.image} /> : null}
+      </View>
 
       <TouchableOpacity style={globalStyles.button} onPress={handleRegister}>
         <Text style={globalStyles.buttonText}>Sign up</Text>
@@ -188,3 +233,20 @@ export default function RegisterScreen({ navigation }) {
     </ScrollView>
   );
 }
+
+const styles = {
+  container: {
+    alignItems: "center",
+    marginVertical: 10,
+  },
+  title: {
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  image: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginTop: 10,
+  },
+};

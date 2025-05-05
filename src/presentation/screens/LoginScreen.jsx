@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ImageBackground } from "react-
 import { AuthContext } from "../../infraestructure/context/AuthContext";
 import UserRepository from "../../infraestructure/api/UserRepository";
 import { globalStyles } from "../../shared/globalStyles";
-import backgroundImage from "../../../assets/Img-flashdate6.png";
+import backgroundImage from "../../../assets/Img-flashdate7.png";
 import CustomModal from "../components/CustomModal";
 
 export default function LoginScreen({ navigation }) {
