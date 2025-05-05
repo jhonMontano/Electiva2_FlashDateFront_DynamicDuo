@@ -11,9 +11,9 @@ export const AuthProvider = ({ children }) => {
         SecureStore.setItemAsync("token", userData.token);
     };
 
-    const logout = () => {
+    const logout = async () => {
         setUser(null);
-        SecureStore.deleteItemAsync("token");
+        await SecureStore.deleteItemAsync("token");
     };
 
     return (
@@ -21,4 +21,4 @@ export const AuthProvider = ({ children }) => {
             {children}
         </AuthContext.Provider>
     );
-}; 
+};

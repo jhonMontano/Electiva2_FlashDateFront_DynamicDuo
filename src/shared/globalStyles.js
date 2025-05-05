@@ -5,7 +5,7 @@ export const globalStyles = StyleSheet.create({
         flexGrow: 1,
         justifyContent: "center",
         padding: 20,
-        backgroundColor: "#fff"
+        backgroundColor: "#ffffff"
     },
     title: {
         fontSize: 32,
@@ -34,10 +34,12 @@ export const globalStyles = StyleSheet.create({
         fontWeight: "bold"
     },
     link: {
-        color: "#1d3557",
+        color: "#000000",
         textAlign: "center",
         marginTop: 20,
-        fontSize: 16
+        fontSize: 16,
+        fontWeight: "bold",
+        textDecorationLine: "underline" 
     },
     background: {
         flex: 1,
