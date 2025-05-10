@@ -1,27 +1,34 @@
-import React, { useContext } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { globalStyles } from '../../shared/globalStyles';
-import { AuthContext } from '../../infraestructure/context/AuthContext';
+
 
 export default function HomeScreen() {
-  const { logout } = useContext(AuthContext);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      console.log("Token removed. Redirecting to Login...");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
-
   return (
     <View style={globalStyles.container}>
-      <Text style={globalStyles.title}>🏠 Home</Text>
+      <View style={styles.header}>
+        <Text style={globalStyles.title}>🏠 Home</Text>
+      </View>
 
-      <TouchableOpacity style={globalStyles.button} onPress={handleLogout}>
-        <Text style={globalStyles.buttonText}>Logout</Text>
-      </TouchableOpacity>
+      <View style={styles.content}>
+        <Text style={globalStyles.paragraph}>Bienvenido a FlashDate 🎉</Text>
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    width: '100%',
+    marginTop: 40,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+});

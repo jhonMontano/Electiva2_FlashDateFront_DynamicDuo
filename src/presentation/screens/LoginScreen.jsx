@@ -23,12 +23,9 @@ export default function LoginScreen({ navigation }) {
       const repo = new UserRepository();
       const response = await repo.login(email, password);
 
-      login({
-        ...response.user,
-        token: response.token
-      });
+      login(response.data.user, response.data.token); 
+      console.log('Rsponse', response);
 
-      showModal("Bienvenido", "Has iniciado sesión correctamente 🚀");
     } catch (error) {
       let errorMessage = "Ocurrió un error al iniciar sesión";
 
