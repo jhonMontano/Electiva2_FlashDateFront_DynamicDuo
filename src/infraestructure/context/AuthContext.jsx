@@ -1,24 +1,51 @@
-import { createContext, useState } from "react";
-import * as SecureStore from "expo-secure-store";
+import React, { createContext, useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    const [token, setToken] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    const login = (userData) => {
-        setUser(userData);
-        SecureStore.setItemAsync("token", userData.token);
+    useEffect(() => {
+        const loadUserData = async () => {
+            try {
+                const storedUser = await AsyncStorage.getItem('user');
+                const storedToken = await AsyncStorage.getItem('token');
+
+                if (storedUser && storedToken && storedToken !== "null") {
+                    setUser(JSON.parse(storedUser));
+                    console.log("User uploaded", JSON.parse(storedUser));
+                    setToken(storedToken);
+                }
+            } catch (error) {
+                console.log("Error cargando usuario: ", error);
+                }finally {
+                    setLoading(false);
+                }    
+            };
+
+            loadUserData();
+        }, []);
+
+        const login = async (userData, jwtToken) => {
+            setUser(userData);
+            console.log("🔐 Login guardado:", userData);
+            setToken(jwtToken);
+
+            await AsyncStorage.setItem('user', JSON.stringify(userData));
+            await AsyncStorage.setItem('token', jwtToken);
+        };
+
+        const logout = async () => {
+            setUser(null);
+            setToken(null);
+            await AsyncStorage.clear();
+        };
+        return (
+            <AuthContext.Provider value={{user, token, loading, login, logout}}>
+                {children}
+            </AuthContext.Provider>
+        );
     };
-
-    const logout = async () => {
-        setUser(null);
-        await SecureStore.deleteItemAsync("token");
-    };
-
-    return (
-        <AuthContext.Provider value={{user, login, logout}}>
-            {children}
-        </AuthContext.Provider>
-    );
-};
