@@ -5,6 +5,7 @@ import { AuthContext } from '../../infraestructure/context/AuthContext';
 import UserRepository from '../../infraestructure/api/UserRepository';
 import CustomModal from '../components/CustomModal';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { Image } from 'react-native';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
@@ -21,7 +22,8 @@ export default function ProfileScreen({ navigation }) {
     preferences: '',
     country: '',
     state: '',
-    city: ''
+    city: '',
+    profilePhoto: ''
   });
 
   const showModal = (title, message) => {
@@ -52,11 +54,12 @@ export default function ProfileScreen({ navigation }) {
           preferences: userData.preferences?.join(',') || '',
           country: userData.location?.country || '',
           state: userData.location?.state || '',
-          city: userData.location?.city || ''
+          city: userData.location?.city || '',
+          profilePhoto: userData.profilePhoto?.[0] || ''
         });
 
       } catch (error) {
-        console.log('Error al cargar el perfil:', error);
+        console.log('Error loading user:', error);
         showModal('Error', 'Error loading profile data');
       } finally {
         setLoading(false);
@@ -66,7 +69,7 @@ export default function ProfileScreen({ navigation }) {
     if (user && (user._id || user.id)) {
       fetchData();
     } else {
-      console.log("No se encontró un usuario válido en el contexto");
+      console.log("User not found in the context");
       setLoading(false);
     }
   }, [user]);
@@ -110,8 +113,15 @@ export default function ProfileScreen({ navigation }) {
   return (
     <ScrollView contentContainerStyle={globalStyles.container}>
       <View style={styles.header}>
-        <Text style={globalStyles.title}>🏠 Home</Text>
-        <TouchableOpacity onPress={() => setShowLogoutModal(true)}> 
+        {formData.profilePhoto ? (
+          <Image
+            source={{ uri: formData.profilePhoto }}
+            style={{ width: 120, height: 120, borderRadius: 60, alignSelf: 'center', marginVertical: 10 }}
+          />
+        ) : (
+          <Text style={{ alignSelf: 'center', marginBottom: 10 }}>No profile photo</Text>
+        )}
+        <TouchableOpacity onPress={() => setShowLogoutModal(true)}>
           <Icon name="log-out-outline" size={28} color="#333" />
         </TouchableOpacity>
         <Modal transparent={true} visible={showLogoutModal} animationType="fade">
@@ -181,7 +191,7 @@ export default function ProfileScreen({ navigation }) {
       />
 
       <TouchableOpacity style={globalStyles.button} onPress={handleSaveChanges}>
-        <Text style={globalStyles.buttonText}>Guardar cambios</Text>
+        <Text style={globalStyles.buttonText}>Apply changes</Text>
       </TouchableOpacity>
 
       <CustomModal
