@@ -6,14 +6,15 @@ import {
   TouchableOpacity,
   ScrollView,
   Button,
-  Image,
   View,
+  Pressable
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { globalStyles } from "../../shared/globalStyles";
 import UserRepository from "../../infraestructure/api/UserRepository";
 import CustomModal from "../components/CustomModal";
+import { Picker } from '@react-native-picker/picker';
 
 let DatePickerWeb;
 if (Platform.OS === "web") {
@@ -32,11 +33,14 @@ export default function RegisterScreen({ navigation }) {
   const [country, setCountry] = useState("");
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
-  const [profilePhoto, setProfilePhoto] = useState("");
+  const [profilePhotos, setProfilePhotos] = useState([]);
+  const [tempPhotoUrls, setTempPhotoUrls] = useState([""]);
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMessage, setModalMessage] = useState({ title: "", message: "" });
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const showModal = (title, message) => {
     setModalMessage({ title, message });
@@ -44,18 +48,7 @@ export default function RegisterScreen({ navigation }) {
   };
 
   const validateFields = () => {
-    if (
-      !name ||
-      !lastName ||
-      !birthday ||
-      !email ||
-      !password ||
-      !gender ||
-      !preferences ||
-      !country ||
-      !state ||
-      !city
-    ) {
+    if (!name || !lastName || !birthday || !email || !password || !gender || !preferences || !country || !state || !city) {
       showModal("Required fields", "Please complete all required fields.");
       return false;
     }
@@ -70,6 +63,11 @@ export default function RegisterScreen({ navigation }) {
       return false;
     }
 
+    if (!profilePhotos.length || !profilePhotos.some(url => url && url.trim() !== "")) {
+      showModal("Profile Photos", "Please add at least one profile photo URL.");
+      return false;
+    }
+
     return true;
   };
 
@@ -78,31 +76,32 @@ export default function RegisterScreen({ navigation }) {
 
     try {
       const repo = new UserRepository();
-      const response = await repo.register({
+      const userData = {
         name,
         lastName,
-        birthday: birthday.toISOString().split("T")[0],
+        birthday: birthday.toISOString().split("T")[0].replace(/-/g, "/"),
         email,
         password,
         gender,
-        preferences: preferences.split(","),
+        preferences: preferences.split(",").map((pref) => pref.trim()),
         location: { country, state, city },
-        profilePhoto,
-      });
+        profilePhoto: profilePhotos,
+      };
 
+      console.log("📤 Enviando datos del usuario:", userData);
+
+      await repo.register(userData);
       showModal("Success", "Registration successful. You can now log in.");
     } catch (error) {
       let errorMessage = "An error occurred while registering.";
-
       if (error.response?.status === 422) {
-        const firstError = error.response.data?.error?.[0]?.msg || "Datos inválidos.";
-        errorMessage = firstError;
+        errorMessage = error.response.data?.error?.[0]?.msg || "Invalid data.";
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
         errorMessage = error.message;
       }
-
+      console.error("❌ Error al registrar:", error);
       showModal("Error", errorMessage);
     }
   };
@@ -116,32 +115,14 @@ export default function RegisterScreen({ navigation }) {
     setShowDatePicker(false);
   };
 
-  const pickImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permission.status !== "granted") {
-      alert("Se requiere permiso para acceder a la galería.");
-      return;
-    }
-
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setProfilePhoto(uri);
-    }
+  const openPhotoModal = () => {
+    setTempPhotoUrls(profilePhotos.length > 0 ? [...profilePhotos] : [""]);
+    setPhotoModalVisible(true);
   };
 
   return (
     <ScrollView
-      contentContainerStyle={{
-        ...globalStyles.container,
-        paddingVertical: 40,
-      }}
+      contentContainerStyle={{ ...globalStyles.container, paddingVertical: 40 }}
       keyboardShouldPersistTaps="handled"
     >
       <Text style={globalStyles.title}>🔥 Register 🔥</Text>
@@ -149,14 +130,14 @@ export default function RegisterScreen({ navigation }) {
       <TextInput placeholder="Name" value={name} onChangeText={setName} style={globalStyles.input} />
       <TextInput placeholder="Last name" value={lastName} onChangeText={setLastName} style={globalStyles.input} />
 
-      <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+      <Pressable onPress={() => setShowDatePicker(true)}>
         <TextInput
           placeholder="Birthday"
           value={birthday ? birthday.toLocaleDateString() : ""}
           style={globalStyles.input}
           editable={false}
         />
-      </TouchableOpacity>
+      </Pressable>
 
       {showDatePicker &&
         (Platform.OS === "web" ? (
@@ -181,37 +162,83 @@ export default function RegisterScreen({ navigation }) {
           />
         ))}
 
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        style={globalStyles.input}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        style={globalStyles.input}
-        secureTextEntry
-      />
-      <TextInput placeholder="Gender (Male/Female)" value={gender} onChangeText={setGender} style={globalStyles.input} />
-      <TextInput
-        placeholder="Preferences (Male,Female)"
-        value={preferences}
-        onChangeText={setPreferences}
-        style={globalStyles.input}
-      />
+      <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={globalStyles.input} keyboardType="email-address" autoCapitalize="none" />
+      <TextInput placeholder="Password" value={password} onChangeText={setPassword} style={globalStyles.input} secureTextEntry />
+      <View style={globalStyles.inputGroup}>
+        <Text style={globalStyles.label}>Gender</Text>
+        <View style={globalStyles.pickerWrapper}>
+          <Picker
+            selectedValue={gender}
+            onValueChange={(itemValue) => setGender(itemValue)}
+            style={globalStyles.picker}
+          >
+            <Picker.Item label="Select Gender" value="" />
+            <Picker.Item label="Male" value="Male" />
+            <Picker.Item label="Female" value="Female" />
+          </Picker>
+        </View>
+      </View>
+      <View style={globalStyles.inputGroup}>
+        <Text style={globalStyles.label}>Preference</Text>
+        <View style={globalStyles.pickerWrapper}>
+          <Picker
+            selectedValue={preferences}
+            onValueChange={(itemValue) => setPreferences(itemValue)}
+            style={globalStyles.picker}
+          >
+            <Picker.Item label="Select Preference" value="" />
+            <Picker.Item label="Male" value="Male" />
+            <Picker.Item label="Female" value="Female" />
+          </Picker>
+        </View>
+      </View>      
       <TextInput placeholder="Country" value={country} onChangeText={setCountry} style={globalStyles.input} />
       <TextInput placeholder="State" value={state} onChangeText={setState} style={globalStyles.input} />
       <TextInput placeholder="City" value={city} onChangeText={setCity} style={globalStyles.input} />
 
-      <View style={styles.container}>
-        <Text style={styles.title}>Select a profile picture</Text>
-        <Button title="Select image" onPress={pickImage} />
-        {profilePhoto ? <Image source={{ uri: profilePhoto }} style={styles.image} /> : null}
+      <View style={globalStyles.container}>
+        <Button title="Add profile photos" onPress={openPhotoModal} />
+        {profilePhotos.length > 0 && (
+          <Text style={{ marginTop: 10 }}>URLs agregadas: {profilePhotos.length}</Text>
+        )}
       </View>
+
+      <CustomModal
+        visible={photoModalVisible}
+        title="Profile photos"
+        message="Enter the URLs of your photos"
+        onClose={() => setPhotoModalVisible(false)}
+      >
+        <ScrollView>
+          {tempPhotoUrls.map((url, index) => (
+            <TextInput
+              key={index}
+              placeholder={`URL #${index + 1}`}
+              value={url}
+              onChangeText={(text) => {
+                const updated = [...tempPhotoUrls];
+                updated[index] = text;
+                setTempPhotoUrls(updated);
+              }}
+              style={globalStyles.input}
+            />
+          ))}
+          <Button title="Add another URL +" onPress={() => setTempPhotoUrls([...tempPhotoUrls, ""])} />
+          <View style={{ marginVertical: 10 }} />
+          <Button
+            title="Save URLs"
+            onPress={() => {
+              const valid = tempPhotoUrls.filter(url => url && typeof url === "string" && url.trim() !== "");
+              if (valid.length === 0) {
+                alert("Add at least one valid URL.");
+                return;
+              }
+              setProfilePhotos(valid);
+              setPhotoModalVisible(false);
+            }}
+          />
+        </ScrollView>
+      </CustomModal>
 
       <TouchableOpacity style={globalStyles.button} onPress={handleRegister}>
         <Text style={globalStyles.buttonText}>Sign up</Text>
@@ -233,20 +260,3 @@ export default function RegisterScreen({ navigation }) {
     </ScrollView>
   );
 }
-
-const styles = {
-  container: {
-    alignItems: "center",
-    marginVertical: 10,
-  },
-  title: {
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  image: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginTop: 10,
-  },
-};

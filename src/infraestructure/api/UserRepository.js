@@ -2,83 +2,50 @@ import IUserRepository from "../../domain/repositories/IUserRepository";
 import api from "./UserApi";
 
 export default class UserRepository extends IUserRepository {
-    async login(email, password) {
-        const response = await api.post("/auth/login", { email, password });
-        return response.data;
-    }
+  async login(email, password) {
+    console.log("🔐 Login payload:", { email, password });
+    const response = await api.post("/auth/login", { email, password });
+    return response.data;
+  }
 
-    async getUserById(userId) {
-        console.log('User ID recibido ', userId);
-        const response = await api.get(`/users/${userId}`);
-        return response.data;
-    }
+  async getUserById(userId) {
+    console.log("📥 Fetching user with ID:", userId);
+    const response = await api.get(`/users/${userId}`);
+    return response.data;
+  }
 
-    async register(userData) {
-        const formData = new FormData();
+  async register(userData) {
+    const payload = {
+      name: userData.name,
+      lastName: userData.lastName,
+      birthday: userData.birthday,
+      email: userData.email,
+      password: userData.password,
+      gender: userData.gender,
+      preferences: userData.preferences,
+      location: {
+        country: userData.location?.country || "",
+        state: userData.location?.state || "",
+        city: userData.location?.city || "",
+      },
+      profilePhoto: Array.isArray(userData.profilePhoto) ? userData.profilePhoto : [userData.profilePhoto],
+    };
 
-        for (const key in userData) {
-            if (key === "location") {
-                for (const locKey in userData.location) {
-                    formData.append(`location[${locKey}]`, userData.location[locKey]);
-                }
-            } else if (key === "preferences") {
-                userData.preferences.forEach((pref, index) => {
-                    formData.append(`preferences[${index}]`, pref);
-                });
-            } else if (key === "profilePhoto") {
-                continue;
-            } else {
-                formData.append(key, userData[key]);
-            }
-        }
+    console.log("🚀 Registering user with payload:", payload);
 
-        if (userData.profilePhoto) {
-            formData.append("profilePhoto", {
-                uri: userData.profilePhoto.uri,
-                name: "photo.jpg",
-                type: "image/jpeg"
-            });
-        }
+    const response = await api.post("/users/register", payload, {
+      headers: { "Content-Type": "application/json" },
+    });
 
-        const response = await api.post("users/register", formData, {
-            headers: {
-                "Content-Type": "multipart/form-data"
-            }
-        });
+    console.log("✅ Register response:", response.data);
+    return response.data;
+  }
 
-        return response.data;
-    }
-
-    async updateUser(userId, userData) {
-        const formData = new FormData();
-
-        for (const key in userData) {
-            if (key === 'location') {
-                for (const locKey in userData.location) {
-                    formData.append(`location[${locKey}]`, userData.location[locKey]);
-                }
-            } else if (key === 'preferences') {
-                userData.preferences.forEach((pref, index) => {
-                    formData.append(`preferences[${index}]`, pref);
-                });
-            } else if (key === 'profilePhoto' && userData.profilePhoto?.uri) {
-                formData.append('profilePhoto', {
-                    uri: userData.profilePhoto.uri,
-                    name: userData.profilePhoto.name,
-                    type: userData.profilePhoto.type
-                });
-            } else {
-                formData.append(key, userData[key]);
-            }
-        }
-
-        const response = await api.put(`/users/${userId}`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        });
-
-        return response.data;
-    }
+  async updateUser(userId, userData) {
+    console.log("✏️ Updating user:", userId, userData);
+    const response = await api.put(`/users/${userId}`, userData, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  }
 }
-

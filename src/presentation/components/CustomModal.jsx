@@ -1,20 +1,30 @@
 import React from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { globalStyles } from "../../shared/globalStyles";
 
-export default function CustomModal({ visible, title, message, onClose }) {
+export default function CustomModal({ visible, title, message, onClose, children }) {
   return (
     <Modal
-      animationType="fade"
+      animationType="slide"
       transparent={true}
       visible={visible}
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
-          <TouchableOpacity style={styles.button} onPress={onClose}>
-            <Text style={styles.buttonText}>Accept</Text>
+      <View style={styles.centeredView}>
+        <View style={styles.modalView}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          {message && <Text style={styles.modalText}>{message}</Text>}
+          
+          {/* Este es el contenedor para el contenido hijo (children) */}
+          <View style={styles.childrenContainer}>
+            {children}
+          </View>
+          
+          <TouchableOpacity
+            style={[globalStyles.button, styles.closeButton]}
+            onPress={onClose}
+          >
+            <Text style={globalStyles.buttonText}>Close</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -23,38 +33,43 @@ export default function CustomModal({ visible, title, message, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  centeredView: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  modal: {
-    backgroundColor: "#fff",
+  modalView: {
+    width: "80%",
+    maxHeight: "80%",
+    backgroundColor: "white",
     borderRadius: 10,
     padding: 20,
-    width: "80%",
-    alignItems: "center"
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  title: {
+  modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
-    color: "#e63946"
+    textAlign: "center",
   },
-  message: {
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: "center"
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
   },
-  button: {
-    backgroundColor: "#e63946",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8
+  childrenContainer: {
+    width: "100%",
+    marginVertical: 10,
   },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold"
-  }
+  closeButton: {
+    marginTop: 10,
+  },
 });

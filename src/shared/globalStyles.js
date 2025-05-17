@@ -39,18 +39,31 @@ export const globalStyles = StyleSheet.create({
         marginTop: 20,
         fontSize: 16,
         fontWeight: "bold",
-        textDecorationLine: "underline" 
+        textDecorationLine: "underline"
     },
     background: {
         flex: 1,
         width: "100%",
-        height: "100%",  
+        height: "100%",
         resizeMode: "cover",
-      },
-      overlay: {
+    },
+    overlay: {
         flex: 1,
         backgroundColor: "rgba(0, 0, 0, 0.04)",
         justifyContent: "center",
         padding: 20,
-      },   
+    },
+    pickerWrapper: {
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 8,
+        overflow: "hidden",
+        marginBottom: 16,
+    },
+
+    picker: {
+        height: 50,
+        width: "100%",
+    },
+
 });
