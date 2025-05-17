@@ -7,7 +7,6 @@ import {
   ScrollView,
   Button,
   View,
-  Pressable
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
@@ -15,6 +14,8 @@ import { globalStyles } from "../../shared/globalStyles";
 import UserRepository from "../../infraestructure/api/UserRepository";
 import CustomModal from "../components/CustomModal";
 import { Picker } from '@react-native-picker/picker';
+import RNPickerSelect from 'react-native-picker-select';
+
 
 let DatePickerWeb;
 if (Platform.OS === "web") {
@@ -107,12 +108,8 @@ export default function RegisterScreen({ navigation }) {
   };
 
   const handleDateChange = (event, selectedDate) => {
-    if (event.type === "dismissed") {
-      setShowDatePicker(false);
-      return;
-    }
-    setBirthday(selectedDate || birthday);
-    setShowDatePicker(false);
+    if (Platform.OS !== "ios") setShowDatePicker(false);
+    if (selectedDate) setBirthday(selectedDate);
   };
 
   const openPhotoModal = () => {
@@ -130,14 +127,15 @@ export default function RegisterScreen({ navigation }) {
       <TextInput placeholder="Name" value={name} onChangeText={setName} style={globalStyles.input} />
       <TextInput placeholder="Last name" value={lastName} onChangeText={setLastName} style={globalStyles.input} />
 
-      <Pressable onPress={() => setShowDatePicker(true)}>
+      <TouchableOpacity onPress={() => setShowDatePicker(true)}>
         <TextInput
           placeholder="Birthday"
           value={birthday ? birthday.toLocaleDateString() : ""}
           style={globalStyles.input}
           editable={false}
+          pointerEvents="none"
         />
-      </Pressable>
+      </TouchableOpacity>
 
       {showDatePicker &&
         (Platform.OS === "web" ? (
@@ -157,20 +155,27 @@ export default function RegisterScreen({ navigation }) {
           <DateTimePicker
             value={birthday}
             mode="date"
-            display={Platform.OS === "ios" ? "spinner" : "default"}
+            display="default"
             onChange={handleDateChange}
           />
         ))}
 
       <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={globalStyles.input} keyboardType="email-address" autoCapitalize="none" />
       <TextInput placeholder="Password" value={password} onChangeText={setPassword} style={globalStyles.input} secureTextEntry />
+
       <View style={globalStyles.inputGroup}>
         <Text style={globalStyles.label}>Gender</Text>
-        <View style={globalStyles.pickerWrapper}>
+        <View
+          style={{
+            ...globalStyles.pickerWrapper,
+            height: Platform.OS === 'android' ? 50 : undefined,
+          }}
+        >
           <Picker
             selectedValue={gender}
             onValueChange={(itemValue) => setGender(itemValue)}
             style={globalStyles.picker}
+            mode={Platform.OS === 'ios' ? 'dialog' : 'dropdown'}
           >
             <Picker.Item label="Select Gender" value="" />
             <Picker.Item label="Male" value="Male" />
@@ -178,20 +183,23 @@ export default function RegisterScreen({ navigation }) {
           </Picker>
         </View>
       </View>
+
       <View style={globalStyles.inputGroup}>
-        <Text style={globalStyles.label}>Preference</Text>
-        <View style={globalStyles.pickerWrapper}>
+        <Text style={globalStyles.label}>Preferences</Text>
+        <View style={{ ...globalStyles.pickerWrapper, height: Platform.OS === 'android' ? 50 : undefined }}>
           <Picker
             selectedValue={preferences}
             onValueChange={(itemValue) => setPreferences(itemValue)}
             style={globalStyles.picker}
+            mode="dropdown"
           >
             <Picker.Item label="Select Preference" value="" />
             <Picker.Item label="Male" value="Male" />
             <Picker.Item label="Female" value="Female" />
           </Picker>
         </View>
-      </View>      
+      </View>
+
       <TextInput placeholder="Country" value={country} onChangeText={setCountry} style={globalStyles.input} />
       <TextInput placeholder="State" value={state} onChangeText={setState} style={globalStyles.input} />
       <TextInput placeholder="City" value={city} onChangeText={setCity} style={globalStyles.input} />
