@@ -23,6 +23,7 @@
     "expo-image-picker": "~16.1.4",
     "expo-secure-store": "~14.2.3",
     "expo-status-bar": "~2.2.3",
+    "jwt-decode": "^4.0.0",
     "react": "19.0.0",
     "react-datepicker": "^8.3.0",
     "react-dom": "19.0.0",
