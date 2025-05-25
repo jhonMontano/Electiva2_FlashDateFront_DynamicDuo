@@ -1,15 +1,44 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import HomeScreen from '../screens/HomeScreen';
 import ChatScreen from '../screens/ChatScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import UserRepository from '../../infraestructure/api/UserRepository';
+import { getUserIdFromToken } from '../../shared/decodeToken';
 
 const Tab = createBottomTabNavigator();
+const userRepository = new UserRepository();
 
 export default function BottomTabsNavigator() {
+  const [hasNewMatch, setHasNewMatch] = useState(false);
+
+  useEffect(() => {
+    const checkNewMatches = async () => {
+      try {
+        const id = await getUserIdFromToken();
+        const token = await AsyncStorage.getItem('token');
+        const matches = await userRepository.getMatchesByUserId(id, token);
+
+        const lastSeen = await AsyncStorage.getItem('lastSeenMatches');
+        const unseen = matches.some(
+          (match) => new Date(match.createdAt) > new Date(lastSeen)
+        );
+
+        setHasNewMatch(unseen);
+      } catch (error) {
+        console.error('❌ Error revisando nuevos matches:', error.message);
+      }
+    };
+
+    checkNewMatches();
+    const interval = setInterval(checkNewMatches, 10000); // cada 10 segundos
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -40,7 +69,13 @@ export default function BottomTabsNavigator() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Chat" component={ChatScreen} />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} />
+      <Tab.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{
+          tabBarBadge: hasNewMatch ? '•' : null, // puedes usar un número si quieres
+        }}
+      />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
