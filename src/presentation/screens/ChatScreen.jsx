@@ -8,6 +8,9 @@ import { useIsFocused, useNavigation } from '@react-navigation/native';
 const userRepository = new UserRepository();
 
 export default function ChatScreen() {
+  // Al inicio del componente
+  console.log('💬 ConversationScreen params:', route.params);
+  console.log('🔌 Socket disponible:', !!socket);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
