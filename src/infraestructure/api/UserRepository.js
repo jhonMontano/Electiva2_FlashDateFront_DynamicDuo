@@ -8,6 +8,12 @@ export default class UserRepository extends IUserRepository {
     return response.data;
   }
 
+  async getMessageById(messageId) {
+    console.log("📩 Fetching message with ID:", messageId);
+    const response = await api.get(`/messages/${messageId}`);
+    return response.data;
+  }
+
   async register(userData) {
     const payload = {
       name: userData.name,
