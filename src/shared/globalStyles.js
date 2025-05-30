@@ -4,15 +4,16 @@ export const globalStyles = StyleSheet.create({
     container: {
         flexGrow: 1,
         justifyContent: "center",
-        padding: 20,
+        padding: 15,
         backgroundColor: "#ffffff"
     },
     title: {
-        fontSize: 32,
-        marginBottom: 20,
-        textAlign: "center",
-        color: "#e63946",
-        fontWeight: "bold"
+        fontSize: 24,
+        marginBottom: -10,
+        textAlign: "left",
+        color: "#000000",
+        fontWeight: "bold",
+        padding: 30,
     },
     input: {
         borderWidth: 1,

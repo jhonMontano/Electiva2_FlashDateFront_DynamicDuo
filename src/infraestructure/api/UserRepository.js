@@ -28,6 +28,7 @@ export default class UserRepository extends IUserRepository {
         state: userData.location?.state || "",
         city: userData.location?.city || "",
       },
+      description: userData.description,
       profilePhoto: Array.isArray(userData.profilePhoto)
         ? userData.profilePhoto
         : [userData.profilePhoto],

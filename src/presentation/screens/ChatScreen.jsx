@@ -24,12 +24,10 @@ export default function ChatScreen() {
         const token = await AsyncStorage.getItem('token');
         const data = await userRepository.getMatchesByUserId(id, token);
         
-        // Cargar mensajes leídos del storage local
         const readMessagesData = await AsyncStorage.getItem(`readMessages_${id}`);
         const readMessagesSet = readMessagesData ? new Set(JSON.parse(readMessagesData)) : new Set();
         setReadMessages(readMessagesSet);
         
-        // Obtener los últimos mensajes para cada match
         const matchesWithMessages = await Promise.all(
           (data || []).map(async (match) => {
             try {
@@ -39,11 +37,9 @@ export default function ChatScreen() {
               
               if (messagesResponse.ok) {
                 const messages = await messagesResponse.json();
-                console.log(`📨 Match ${match._id}: ${messages.length} mensajes cargados`);
                 
                 const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
                 
-                // Contar mensajes no leídos (que recibí y no están en mi set de leídos)
                 const unreadCount = messages.filter(msg => 
                   msg.receiverId.toString() === id.toString() && 
                   !readMessagesSet.has(msg._id.toString())
@@ -60,7 +56,7 @@ export default function ChatScreen() {
                   totalMessages: messages.length
                 };
               } else {
-                console.warn(`❌ Error cargando mensajes para match ${match._id}: ${messagesResponse.status}`);
+                console.warn(`Error in match ${match._id}: ${messagesResponse.status}`);
               }
               return { ...match, lastMessage: null, unreadCount: 0, totalMessages: 0 };
             } catch (error) {
@@ -70,7 +66,6 @@ export default function ChatScreen() {
           })
         );
 
-        // Ordenar por último mensaje (más reciente primero)
         matchesWithMessages.sort((a, b) => {
           if (!a.lastMessage && !b.lastMessage) return 0;
           if (!a.lastMessage) return 1;
@@ -78,10 +73,9 @@ export default function ChatScreen() {
           return new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt);
         });
 
-        console.log(`✅ ${matchesWithMessages.length} matches cargados con mensajes`);
         setMatches(matchesWithMessages);
       } catch (error) {
-        console.error('❌ Error fetching matches:', error);
+        console.error('Error fetching matches:', error);
         setMatches([]);
       } finally {
         setLoading(false);
@@ -91,9 +85,6 @@ export default function ChatScreen() {
     if (isFocused) {
       fetchMatches();
     } else {
-      // No limpiar el estado cuando pierde foco para mantener los datos
-      // setMatches([]);
-      // setUserId(null);
       setLoading(false);
     }
   }, [isFocused]);
@@ -114,13 +105,11 @@ export default function ChatScreen() {
         const newReadMessages = new Set([...readMessages, ...receivedMessageIds]);
         setReadMessages(newReadMessages);
         
-        // Guardar en storage local
         await AsyncStorage.setItem(
           `readMessages_${userId}`, 
           JSON.stringify([...newReadMessages])
         );
         
-        // Actualizar la lista de matches para quitar los badges
         setMatches(prevMatches => 
           prevMatches.map(match => 
             match._id === matchId 
@@ -129,29 +118,25 @@ export default function ChatScreen() {
           )
         );
         
-        console.log(`✅ Conversación ${matchId} marcada como leída`);
       }
     } catch (error) {
-      console.error('❌ Error marking conversation as read:', error);
+      console.error('Error marking conversation as read:', error);
     }
   };
 
   const openConversation = (match) => {
     if (!userId) {
-      console.warn('❌ No userId available');
+      console.warn(' No userId available');
       return;
     }
 
     const matchedUser = match.users.find(u => u._id !== userId);
 
     if (!matchedUser) {
-      console.warn('❌ No matched user found for match:', match);
+      console.warn('No matched user found for match:', match);
       return;
     }
 
-    console.log(`🔄 Abriendo conversación con ${matchedUser.name} (${match.totalMessages} mensajes)`);
-
-    // Marcar conversación como leída si tiene mensajes no leídos
     if (match.unreadCount > 0) {
       markConversationAsRead(match._id);
     }
@@ -234,12 +219,12 @@ export default function ChatScreen() {
                 {truncateMessage(item.lastMessage.content)}
               </Text>
               <Text style={styles.messageCounter}>
-                {item.totalMessages} mensaje{item.totalMessages !== 1 ? 's' : ''}
+                {item.totalMessages} message{item.totalMessages !== 1 ? 's' : ''}
               </Text>
             </View>
           ) : (
             <Text style={styles.noMessages}>
-              ¡Empieza la conversación!
+              ¡Start the conversation!
             </Text>
           )}
         </View>
@@ -251,7 +236,7 @@ export default function ChatScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#ff3366" />
-        <Text style={styles.loadingText}>Cargando chats...</Text>
+        <Text style={styles.loadingText}>Loading chats...</Text>
       </View>
     );
   }
@@ -261,8 +246,8 @@ export default function ChatScreen() {
       <Text style={styles.title}>Chats</Text>
       {matches.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No tienes conversaciones activas.</Text>
-          <Text style={styles.emptySubText}>Cuando tengas matches, aparecerán aquí.</Text>
+          <Text style={styles.emptyText}>You have no active conversations.</Text>
+          <Text style={styles.emptySubText}>When you have matches, they will appear here.</Text>
         </View>
       ) : (
         <FlatList
@@ -281,8 +266,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: -10,
     color: '#333',
+    padding: 30
   },
   loadingContainer: {
     flex: 1,

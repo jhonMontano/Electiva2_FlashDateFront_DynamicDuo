@@ -7,6 +7,19 @@ import { getUserIdFromToken } from '../../shared/decodeToken';
 
 const userRepository = new UserRepository();
 
+const styles = StyleSheet.create({
+  homeTitle: {
+    textAlign: 'left',
+    marginTop: 20,
+    zIndex: 10,
+  },
+  cardContainer: {
+    flex: 1,
+    justifyContent: 'right',
+    alignItems: 'center',
+  },
+});
+
 export default function HomeScreen() {
   const [loggedUserId, setLoggedUserId] = useState(null);
   const [profiles, setProfiles] = useState([]);
@@ -20,16 +33,13 @@ export default function HomeScreen() {
   const initialize = async () => {
     try {
       const userId = await getUserIdFromToken();
-      console.log("✅ User ID from token:", userId);
       if (userId) {
         setLoggedUserId(userId);
         await fetchProfiles(userId);
       } else {
-        console.log("⚠️ No user ID found in token");
         setLoading(false);
       }
     } catch (err) {
-      console.log("❌ Error en initialize:", err.message);
       setLoading(false);
     }
   };
@@ -53,7 +63,7 @@ export default function HomeScreen() {
   const handleSwipeRight = async (user) => {
     const result = await sendSwipe(user, 'like');
     if (result?.match) {
-      alert('🎉 ¡You have a new match!');
+      alert('¡You have a new match!');
     }
     setCurrentIndex(prev => prev + 1);
   };
@@ -74,28 +84,31 @@ export default function HomeScreen() {
   if (currentIndex >= profiles.length) {
     return (
       <View style={globalStyles.container}>
-        <Text>There are no more profiles for now. 😢</Text>
+        <Text>There are no more profiles for now.</Text>
       </View>
     );
   }
 
   return (
     <View style={globalStyles.container}>
-      {profiles
-        .slice(currentIndex)
-        .reverse()
-        .map((user) => (
-          <SwipeCard
-            key={user._id}
-            user={{
-              ...user,
-              fotoPerfil: user.profilePhoto[0],
-              ubicacion: `${user.location.city}, ${user.location.country}`,
-            }}
-            onSwipeLeft={handleSwipeLeft}
-            onSwipeRight={handleSwipeRight}
-          />
-        ))}
+      <Text style={[globalStyles.title, styles.homeTitle]}>Home</Text>
+      <View style={styles.cardContainer}>
+        {profiles
+          .slice(currentIndex)
+          .reverse()
+          .map((user) => (
+            <SwipeCard
+              key={user._id}
+              user={{
+                ...user,
+                fotoPerfil: user.profilePhoto[0],
+                ubicacion: `${user.location.city}, ${user.location.country}`,
+              }}
+              onSwipeLeft={handleSwipeLeft}
+              onSwipeRight={handleSwipeRight}
+            />
+          ))}
+      </View>
     </View>
   );
 }
