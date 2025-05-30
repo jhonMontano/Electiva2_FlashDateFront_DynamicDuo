@@ -1,5 +1,5 @@
 export default class Register {
-  constructor({ id, name, lastName, birthday, email, password, gender, preferences, location, profilePhoto = [] }) {
+  constructor({ id, name, lastName, birthday, email, password, gender, preferences, location, description, profilePhoto = [] }) {
     this.id = id;
     this.name = name;
     this.lastName = lastName;
@@ -9,6 +9,7 @@ export default class Register {
     this.gender = gender;
     this.preferences = preferences;
     this.location = location;
+    this.description = description;
     this.profilePhoto = Array.isArray(profilePhoto) ? profilePhoto : [profilePhoto];
 
     console.log("🔧 Register class initialized:", this);

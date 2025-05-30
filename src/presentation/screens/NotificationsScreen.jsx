@@ -26,7 +26,7 @@ export default function NotificationsScreen() {
 
         await AsyncStorage.setItem('lastSeenMatches', new Date().toISOString());
       } catch (error) {
-        console.error('⚠️ Error cargando matches:', error.message);
+        console.error('Error:', error.message);
       } finally {
         setLoading(false);
       }
@@ -55,10 +55,10 @@ export default function NotificationsScreen() {
 
   return (
     <View style={globalStyles.container}>
-      <Text style={globalStyles.title}>🔔 Notificaciones</Text>
+      <Text style={globalStyles.title}>Notifications</Text>
 
       {matches.length === 0 ? (
-        <Text style={{ marginTop: 20 }}>Aún no tienes nuevos matches 😢</Text>
+        <Text style={{ marginTop: 20 }}>You don't have any new matches yet</Text>
       ) : (
         <FlatList
           data={matches}

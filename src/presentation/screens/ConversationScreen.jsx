@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSocket } from '../../infraestructure/socket/socket';
+import { useSocketConnection } from '../../infraestructure/socket/socket';
 import { getUserIdFromToken } from '../../shared/decodeToken';
 
 export default function ConversationScreen() {
@@ -11,28 +11,25 @@ export default function ConversationScreen() {
   const flatListRef = useRef(null);
 
   const { matchId, matchedUser } = route.params;
+  const { socket, isConnected, userId: socketUserId } = useSocketConnection();
 
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState(socketUserId);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const socket = useSocket();
+  const [roomId, setRoomId] = useState(`match_${matchId}`);
 
-  // Cache key para persistencia local
   const cacheKey = `messages_${matchId}_${userId}`;
 
-  // Guardar mensajes en caché local
   const saveMessagesToCache = async (messagesArray) => {
     try {
       await AsyncStorage.setItem(cacheKey, JSON.stringify(messagesArray));
     } catch (error) {
-      console.error('Error guardando mensajes en caché:', error);
+      console.error('Error:', error);
     }
   };
 
-  // Cargar mensajes desde caché local
   const loadMessagesFromCache = async () => {
     try {
       const cachedMessages = await AsyncStorage.getItem(cacheKey);
@@ -42,59 +39,45 @@ export default function ConversationScreen() {
         return parsedMessages;
       }
     } catch (error) {
-      console.error('Error cargando mensajes desde caché:', error);
+      console.error('Error:', error);
     }
     return [];
   };
 
-  // Marcar mensajes como leídos
-  useFocusEffect(
-    useCallback(() => {
-      const markAsRead = async () => {
-        if (userId && matchId) {
-          try {
-            const readMessagesData = await AsyncStorage.getItem(`readMessages_${userId}`);
-            const readMessagesSet = readMessagesData ? new Set(JSON.parse(readMessagesData)) : new Set();
-            
-            const token = await AsyncStorage.getItem('token');
-            const response = await fetch(`http://192.168.0.13:3000/api/messages/match_${matchId}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            
-            if (response.ok) {
-              const allMessages = await response.json();
-              const receivedMessageIds = allMessages
-                .filter(msg => msg.receiverId.toString() === userId.toString())
-                .map(msg => msg._id.toString());
-              
-              receivedMessageIds.forEach(id => readMessagesSet.add(id));
-              
-              await AsyncStorage.setItem(
-                `readMessages_${userId}`, 
-                JSON.stringify([...readMessagesSet])
-              );
-            }
-          } catch (error) {
-            console.error('Error marking messages as read:', error);
-          }
-        }
-      };
-      
-      markAsRead();
-    }, [userId, matchId])
-  );
+  const addMessageSafely = useCallback((newMessage) => {
+    setMessages(prevMessages => {
+      const messageExists = prevMessages.some(existingMsg =>
+        existingMsg._id === newMessage._id ||
+        (existingMsg.content === newMessage.content &&
+          existingMsg.from.toString() === newMessage.from.toString() &&
+          Math.abs(new Date(existingMsg.createdAt) - new Date(newMessage.createdAt)) < 5000)
+      );
 
-  // Cargar mensajes desde la API con fallback a caché
+      if (!messageExists) {
+        const updatedMessages = [...prevMessages, newMessage]
+          .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+        saveMessagesToCache(updatedMessages);
+
+        setTimeout(() => {
+          if (flatListRef.current) {
+            flatListRef.current.scrollToEnd({ animated: true });
+          }
+        }, 100);
+
+        return updatedMessages;
+      }
+      return prevMessages;
+    });
+  }, []);
+
   const loadMessages = async (currentUserId = null, showFromCache = true) => {
     try {
       const id = currentUserId || userId || await getUserIdFromToken();
-      
-      // Primero mostrar desde caché si está disponible
+
       if (showFromCache && id) {
         const cachedMessages = await loadMessagesFromCache();
         if (cachedMessages.length > 0) {
-          console.log('📱 Mensajes cargados desde caché:', cachedMessages.length);
-          // Auto-scroll al final
           setTimeout(() => {
             if (flatListRef.current && cachedMessages.length > 0) {
               flatListRef.current.scrollToEnd({ animated: false });
@@ -103,8 +86,6 @@ export default function ConversationScreen() {
         }
       }
 
-      // Luego cargar desde API
-      console.log('🔄 Cargando mensajes para match:', matchId);
       const token = await AsyncStorage.getItem('token');
       const response = await fetch(`http://192.168.0.13:3000/api/messages/match_${matchId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -112,9 +93,7 @@ export default function ConversationScreen() {
 
       if (response.ok) {
         const existingMessages = await response.json();
-        console.log('📨 Mensajes cargados desde API:', existingMessages.length);
 
-        // Mapear mensajes
         const formattedMessages = existingMessages
           .map((msg) => ({
             content: msg.content,
@@ -128,146 +107,117 @@ export default function ConversationScreen() {
           .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
         setMessages(formattedMessages);
-        
-        // Guardar en caché
+
         if (id) {
           await saveMessagesToCache(formattedMessages);
         }
-        
-        // Auto-scroll al final
+
         setTimeout(() => {
           if (flatListRef.current && formattedMessages.length > 0) {
             flatListRef.current.scrollToEnd({ animated: false });
           }
         }, 100);
       } else {
-        console.error('❌ Error al cargar mensajes desde API:', response.status);
-        // Si falla la API, al menos tenemos los mensajes del caché
+        console.error('Error:', response.status);
       }
     } catch (error) {
-      console.error('❌ Error cargando mensajes:', error);
-      // En caso de error de red, los mensajes del caché siguen disponibles
+      console.error('Error:', error);
     }
   };
 
-  // Sincronizar mensajes - combinar caché con API
-  const syncMessages = async (newMessage) => {
-    setMessages(prevMessages => {
-      // Verificar si el mensaje ya existe
-      const messageExists = prevMessages.some(existingMsg => 
-        existingMsg._id === newMessage._id ||
-        (existingMsg.content === newMessage.content && 
-         existingMsg.from.toString() === newMessage.from.toString() &&
-         Math.abs(new Date(existingMsg.createdAt) - new Date(newMessage.createdAt)) < 5000)
-      );
-      
-      if (!messageExists) {
-        const updatedMessages = [...prevMessages, newMessage]
-          .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        
-        // Guardar en caché
-        saveMessagesToCache(updatedMessages);
-        
-        // Auto-scroll
-        setTimeout(() => {
-          if (flatListRef.current) {
-            flatListRef.current.scrollToEnd({ animated: true });
-          }
-        }, 100);
-        
-        return updatedMessages;
-      }
-      return prevMessages;
-    });
-  };
-
-  // Setup inicial y configuración del socket
   useEffect(() => {
-    let isMounted = true;
-    let cleanup = null;
-    
-    const setup = async () => {
+    const initializeUser = async () => {
       try {
         const id = await getUserIdFromToken();
-        if (!isMounted) return;
         setUserId(id);
-
-        const roomId = `match_${matchId}`;
-        
-        // Configurar eventos del socket
-        if (socket) {
-          const handleConnect = () => {
-            console.log('🔌 Socket conectado');
-            setIsConnected(true);
-            socket.emit('JoinRoom', { roomId });
-            console.log('✅ Joined room:', roomId);
-          };
-
-          const handleDisconnect = () => {
-            console.log('🔌 Socket desconectado');
-            setIsConnected(false);
-          };
-
-          const handlePrivateMessage = (msg) => {
-            console.log('📩 Mensaje recibido via socket:', msg);
-            
-            if (msg.roomId === roomId) {
-              const newMessage = {
-                content: msg.content,
-                from: msg.from || msg.senderId,
-                to: msg.to || msg.receiverId,
-                fromSelf: (msg.from || msg.senderId).toString() === id.toString(),
-                createdAt: msg.createdAt || new Date().toISOString(),
-                roomId: msg.roomId,
-                _id: msg._id || `temp_${Date.now()}_${Math.random()}`
-              };
-              
-              syncMessages(newMessage);
-            }
-          };
-
-          if (socket.connected) {
-            handleConnect();
-          }
-
-          socket.on('connect', handleConnect);
-          socket.on('disconnect', handleDisconnect);
-          socket.on('privateMessage', handlePrivateMessage);
-          
-          cleanup = () => {
-            socket.off('connect', handleConnect);
-            socket.off('disconnect', handleDisconnect);
-            socket.off('privateMessage', handlePrivateMessage);
-          };
-        }
-
-        // Cargar mensajes
         await loadMessages(id);
-
       } catch (error) {
-        console.error('❌ Error en setup:', error);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
 
-    if (matchId) {
-      setup();
+    initializeUser();
+  }, [matchId]);
+
+  useEffect(() => {
+    if (!socket || !userId) return;
+
+    const handlePrivateMessage = (msg) => {
+
+      if (msg.roomId === roomId) {
+        const newMessage = {
+          content: msg.content,
+          from: msg.from || msg.senderId,
+          to: msg.to || msg.receiverId,
+          fromSelf: (msg.from || msg.senderId).toString() === userId.toString(),
+          createdAt: msg.createdAt || new Date().toISOString(),
+          roomId: msg.roomId,
+          _id: msg._id || `temp_${Date.now()}_${Math.random()}`
+        };
+
+        addMessageSafely(newMessage);
+      }
+    };
+
+    const handleConnect = () => {
+      socket.emit('JoinRoom', { roomId });
+    };
+
+    const handleDisconnect = () => {
+    };
+
+    socket.on('privateMessage', handlePrivateMessage);
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    if (isConnected) {
+      handleConnect();
     }
 
     return () => {
-      isMounted = false;
-      if (cleanup) cleanup();
+      socket.off('privateMessage', handlePrivateMessage);
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
     };
-  }, [socket, matchId]);
+  }, [socket, userId, roomId, isConnected, addMessageSafely]);
 
-  // Recargar mensajes cuando la pantalla recibe foco
   useFocusEffect(
     useCallback(() => {
+      const markAsRead = async () => {
+        if (userId && matchId) {
+          try {
+            const readMessagesData = await AsyncStorage.getItem(`readMessages_${userId}`);
+            const readMessagesSet = readMessagesData ? new Set(JSON.parse(readMessagesData)) : new Set();
+
+            const token = await AsyncStorage.getItem('token');
+            const response = await fetch(`http://192.168.0.13:3000/api/messages/match_${matchId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (response.ok) {
+              const allMessages = await response.json();
+              const receivedMessageIds = allMessages
+                .filter(msg => msg.receiverId.toString() === userId.toString())
+                .map(msg => msg._id.toString());
+
+              receivedMessageIds.forEach(id => readMessagesSet.add(id));
+
+              await AsyncStorage.setItem(
+                `readMessages_${userId}`,
+                JSON.stringify([...readMessagesSet])
+              );
+            }
+          } catch (error) {
+            console.error('Error marking messages as read:', error);
+          }
+        }
+      };
+
+      markAsRead();
+
       if (userId && matchId) {
-        loadMessages(userId, false); // No mostrar caché, solo recargar desde API
+        loadMessages(userId, false);
       }
     }, [userId, matchId])
   );
@@ -278,42 +228,27 @@ export default function ConversationScreen() {
     setIsSending(true);
     const messageContent = inputMessage.trim();
     const tempId = `temp_${Date.now()}_${Math.random()}`;
-    
+
     const messageData = {
-      roomId: `match_${matchId}`,
+      roomId: roomId,
       senderId: userId,
       receiverId: matchedUser._id,
       content: messageContent,
     };
 
-    // Mensaje temporal para UI inmediata
     const tempMessage = {
       content: messageContent,
       from: userId,
       to: matchedUser._id,
       fromSelf: true,
-      roomId: `match_${matchId}`,
+      roomId: roomId,
       createdAt: new Date().toISOString(),
       _id: tempId,
       isTemporary: true,
     };
 
-    // Agregar mensaje temporalmente
-    setMessages((prev) => {
-      const updated = [...prev, tempMessage];
-      // Guardar en caché incluso el mensaje temporal
-      saveMessagesToCache(updated);
-      return updated;
-    });
-    
+    addMessageSafely(tempMessage);
     setInputMessage('');
-
-    // Scroll al final
-    setTimeout(() => {
-      if (flatListRef.current) {
-        flatListRef.current.scrollToEnd({ animated: true });
-      }
-    }, 50);
 
     try {
       const token = await AsyncStorage.getItem('token');
@@ -328,31 +263,27 @@ export default function ConversationScreen() {
 
       if (response.ok) {
         const savedMessage = await response.json();
-        console.log('✅ Mensaje guardado en BD:', savedMessage);
-        
-        // Reemplazar mensaje temporal con el guardado
+
         setMessages((prev) => {
-          const updated = prev.map(msg => 
+          const updated = prev.map(msg =>
             msg._id === tempId
               ? {
-                  content: savedMessage.content,
-                  from: savedMessage.senderId,
-                  to: savedMessage.receiverId,
-                  fromSelf: true,
-                  roomId: savedMessage.roomId,
-                  createdAt: savedMessage.createdAt,
-                  _id: savedMessage._id,
-                }
+                content: savedMessage.content,
+                from: savedMessage.senderId,
+                to: savedMessage.receiverId,
+                fromSelf: true,
+                roomId: savedMessage.roomId,
+                createdAt: savedMessage.createdAt,
+                _id: savedMessage._id,
+              }
               : msg
           );
-          
-          // Actualizar caché
+
           saveMessagesToCache(updated);
           return updated;
         });
 
-        // Enviar por socket solo si está conectado
-        if (socket && socket.connected) {
+        if (socket && isConnected) {
           const socketMessage = {
             ...messageData,
             from: userId,
@@ -360,31 +291,31 @@ export default function ConversationScreen() {
             createdAt: savedMessage.createdAt,
             _id: savedMessage._id,
           };
-          
+
           socket.emit('privateMessage', socketMessage);
-          console.log('🔄 Mensaje enviado por socket:', socketMessage);
+        } else {
+          console.warn('Socket no conect');
         }
 
       } else {
         throw new Error(`HTTP ${response.status}`);
       }
     } catch (error) {
-      console.error('❌ Error enviando mensaje:', error);
-      
-      // Remover mensaje temporal y mostrar error
+      console.error('Error:', error);
+
       setMessages((prev) => {
         const updated = prev.filter(msg => msg._id !== tempId);
         saveMessagesToCache(updated);
         return updated;
       });
-      
+
       Alert.alert(
-        'Error al enviar mensaje',
-        'No se pudo enviar el mensaje. ¿Deseas intentar de nuevo?',
+        'Error sending message',
+        'The message could not be sent. Would you like to try again?',
         [
-          { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Reintentar', 
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Retry',
             onPress: () => {
               setInputMessage(messageContent);
               setTimeout(() => sendMessage(), 100);
@@ -401,29 +332,29 @@ export default function ConversationScreen() {
     if (!dateString) return '';
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return '';
-    
-    return date.toLocaleTimeString('es-ES', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+
+    return date.toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   const shouldShowTime = (currentIndex) => {
     if (currentIndex === 0) return true;
-    
+
     const currentMessage = messages[currentIndex];
     const previousMessage = messages[currentIndex - 1];
-    
+
     if (!currentMessage.createdAt || !previousMessage.createdAt) return false;
-    
+
     const currentTime = new Date(currentMessage.createdAt).getTime();
     const previousTime = new Date(previousMessage.createdAt).getTime();
-    
+
     if (isNaN(currentTime) || isNaN(previousTime)) return false;
-    
+
     const timeDiff = currentTime - previousTime;
     const senderChanged = currentMessage.from.toString() !== previousMessage.from.toString();
-    
+
     return timeDiff > 300000 || senderChanged;
   };
 
@@ -459,24 +390,23 @@ export default function ConversationScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Volver</Text>
+          <Text style={styles.backButton}>← Return</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>
             {matchedUser?.name || 'Usuario'}
           </Text>
           <Text style={[styles.connectionStatus, { color: isConnected ? '#4CAF50' : '#ff9800' }]}>
-            {isConnected ? 'En línea' : 'Reconectando...'}
           </Text>
         </View>
         <Text style={styles.messageCount}>
-          {messages.length} mensajes
+          {messages.length} messages
         </Text>
       </View>
 
@@ -502,23 +432,23 @@ export default function ConversationScreen() {
         <TextInput
           value={inputMessage}
           onChangeText={setInputMessage}
-          placeholder="Escribe un mensaje..."
+          placeholder="Write a message..."
           style={styles.input}
           multiline
           maxLength={500}
           onSubmitEditing={sendMessage}
           returnKeyType="send"
         />
-        <TouchableOpacity 
-          onPress={sendMessage} 
+        <TouchableOpacity
+          onPress={sendMessage}
           style={[
-            styles.sendButton, 
+            styles.sendButton,
             (!inputMessage.trim() || isSending) && styles.disabledButton
           ]}
           disabled={!inputMessage.trim() || isSending}
         >
           <Text style={styles.sendButtonText}>
-            {isSending ? '...' : 'Enviar'}
+            {isSending ? '...' : 'Send'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -553,10 +483,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+    padding: 40
   },
   connectionStatus: {
     fontSize: 10,
-    marginTop: 2,
+    marginTop: -20,
   },
   messageCount: {
     fontSize: 12,

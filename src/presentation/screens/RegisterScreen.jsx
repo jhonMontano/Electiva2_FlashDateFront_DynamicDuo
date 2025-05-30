@@ -9,12 +9,10 @@ import {
   View,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import * as ImagePicker from "expo-image-picker";
 import { globalStyles } from "../../shared/globalStyles";
 import UserRepository from "../../infraestructure/api/UserRepository";
 import CustomModal from "../components/CustomModal";
 import { Picker } from '@react-native-picker/picker';
-import RNPickerSelect from 'react-native-picker-select';
 
 
 let DatePickerWeb;
@@ -30,6 +28,7 @@ export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [gender, setGender] = useState("");
+  const [description, setDescription] = useState("");
   const [preferences, setPreferences] = useState("");
   const [country, setCountry] = useState("");
   const [state, setState] = useState("");
@@ -47,6 +46,19 @@ export default function RegisterScreen({ navigation }) {
     setModalMessage({ title, message });
     setModalVisible(true);
   };
+  const validateAge = (birthDate) => {
+    const today = new Date();
+    const birth = new Date(birthDate);
+
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+
+    return age >= 18;
+  };
 
   const validateFields = () => {
     if (!name || !lastName || !birthday || !email || !password || !gender || !preferences || !country || !state || !city) {
@@ -56,6 +68,10 @@ export default function RegisterScreen({ navigation }) {
 
     if (!/\S+@\S+\.\S+/.test(email)) {
       showModal("Invalid Email", "Please enter a valid email address.");
+      return false;
+    }
+    if (!validateAge(birthday)) {
+      showModal("Edad insuficiente", "Debes tener al menos 18 años para registrarte.");
       return false;
     }
 
@@ -86,10 +102,9 @@ export default function RegisterScreen({ navigation }) {
         gender,
         preferences: preferences.split(",").map((pref) => pref.trim()),
         location: { country, state, city },
+        description,
         profilePhoto: profilePhotos,
       };
-
-      console.log("📤 Enviando datos del usuario:", userData);
 
       await repo.register(userData);
       showModal("Success", "Registration successful. You can now log in.");
@@ -110,6 +125,9 @@ export default function RegisterScreen({ navigation }) {
   const handleDateChange = (event, selectedDate) => {
     if (Platform.OS !== "ios") setShowDatePicker(false);
     if (selectedDate) setBirthday(selectedDate);
+    if (!validateAge(selectedDate)) {
+      showModal("insufficient age", "You must be at least 18 years old to register.");
+    }
   };
 
   const openPhotoModal = () => {
@@ -119,10 +137,10 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <ScrollView
-      contentContainerStyle={{ ...globalStyles.container, paddingVertical: 40 }}
+      contentContainerStyle={{ ...globalStyles.container, paddingVertical: 30}}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={globalStyles.title}>🔥 Register 🔥</Text>
+      <Text style={globalStyles.title}>Register</Text>
 
       <TextInput placeholder="Name" value={name} onChangeText={setName} style={globalStyles.input} />
       <TextInput placeholder="Last name" value={lastName} onChangeText={setLastName} style={globalStyles.input} />
@@ -203,6 +221,7 @@ export default function RegisterScreen({ navigation }) {
       <TextInput placeholder="Country" value={country} onChangeText={setCountry} style={globalStyles.input} />
       <TextInput placeholder="State" value={state} onChangeText={setState} style={globalStyles.input} />
       <TextInput placeholder="City" value={city} onChangeText={setCity} style={globalStyles.input} />
+      <TextInput placeholder="Description" value={description} onChangeText={setDescription} style={globalStyles.input} />
 
       <View style={globalStyles.container}>
         <Button title="Add profile photos" onPress={openPhotoModal} />

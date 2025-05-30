@@ -1,4 +1,3 @@
-// components/SwipeCard.js
 import React, { useRef } from 'react';
 import { Animated, PanResponder, View, Image, Text, StyleSheet, Dimensions } from 'react-native';
 
@@ -7,6 +6,37 @@ const SWIPE_THRESHOLD = 120;
 
 export default function SwipeCard({ user, onSwipeLeft, onSwipeRight }) {
   const position = useRef(new Animated.ValueXY()).current;
+
+  const calculateAge = (birthday) => {
+    if (!birthday) return '';
+
+    const today = new Date();
+    const birthDate = new Date(birthday);
+
+    if (isNaN(birthDate.getTime())) return '';
+
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    return age;
+  };
+
+  const formatBirthday = (birthday) => {
+    if (!birthday) return '';
+
+    const birthDate = new Date(birthday);
+    if (isNaN(birthDate.getTime())) return birthday;
+
+    return birthDate.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
   const panResponder = useRef(
     PanResponder.create({
@@ -54,21 +84,30 @@ export default function SwipeCard({ user, onSwipeLeft, onSwipeRight }) {
     transform: [...position.getTranslateTransform(), { rotate }],
   };
 
+  const userAge = calculateAge(user.birthday);
+
   return (
     <Animated.View {...panResponder.panHandlers} style={[styles.card, cardStyle]}>
       <Image source={{ uri: user.fotoPerfil }} style={styles.image} />
       <View style={styles.info}>
-        <Text style={styles.name}>{user.nombre}, {user.edad}</Text>
+        <Text style={styles.name}>
+          {user.name} {user.lastName}
+        </Text>
+        <Text style={styles.birthday}>
+          {formatBirthday(user.birthday)}
+        </Text>
+        <Text>{userAge && `${userAge}`} years</Text>
+        <Text>{user.gender}</Text>
         <Text style={styles.location}>{user.ubicacion}</Text>
+        <Text>{user.description}</Text>
       </View>
     </Animated.View>
   );
 }
-
 const styles = StyleSheet.create({
   card: {
     width: SCREEN_WIDTH - 40,
-    height: 450,
+    height: 600,
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: '#fff',
