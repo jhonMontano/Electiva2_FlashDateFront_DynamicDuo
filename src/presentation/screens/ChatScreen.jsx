@@ -191,19 +191,55 @@ export default function ChatScreen() {
       {loading ? (
         <ActivityIndicator size="large" color="#FF3C38" />
       ) : (
-        <FlatList
-          data={matches}
-          keyExtractor={(item) => item._id}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
+        <>
+          {matches.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>You don't have any chats yet</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={matches}
+              keyExtractor={(item) => item._id}
+              renderItem={renderItem}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            />
+          )}
+        </>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'left',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#888',
+    textAlign: 'center',
+  },
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -211,8 +247,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#eee',
   },
-  avatarContainer: { position: 'relative' },
-  avatar: { width: 60, height: 60, borderRadius: 30, marginRight: 12 },
+  avatarContainer: { 
+    position: 'relative' 
+  },
+  avatar: { 
+    width: 60, 
+    height: 60, 
+    borderRadius: 30, 
+    marginRight: 12 
+  },
   unreadBadge: {
     position: 'absolute',
     top: -4,
@@ -241,25 +284,8 @@ const styles = StyleSheet.create({
     color: '#555', 
     marginTop: 4 
   },
-  time: { fontSize: 12, 
+  time: { 
+    fontSize: 12, 
     color: '#888' 
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: 50,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'left',
   },
 });

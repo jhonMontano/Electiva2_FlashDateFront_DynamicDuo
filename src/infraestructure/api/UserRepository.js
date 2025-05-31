@@ -46,21 +46,52 @@ export default class UserRepository extends IUserRepository {
       const response = await api.get("/users");
       const allUsers = response.data;
 
+      // Verificar que allUsers sea un array
+      if (!Array.isArray(allUsers)) {
+        console.error("getAllUserExcept: allUsers is not an array");
+        return [];
+      }
+
       const loggedUserResponse = await api.get(`/users/${loggedUserId}`);
       const loggedUser = loggedUserResponse.data;
 
-      const matchesResponse = await api.get(`/swipes/matches/${loggedUserId}`);
-      const matchedUserIds = matchesResponse.data.map(match => match.matchedUser._id);
+      // Verificar que loggedUser existe y tiene preferences
+      if (!loggedUser || !loggedUser.preferences) {
+        console.error("getAllUserExcept: loggedUser or preferences not found");
+        return [];
+      }
 
-      const filteredUsers = allUsers.filter(user =>
-        user._id !== loggedUserId &&
-        !matchedUserIds.includes(user._id) &&
-        loggedUser.preferences.includes(user.gender)
-      );
+      const matchesResponse = await api.get(`/swipes/matches/${loggedUserId}`);
+      const matches = matchesResponse.data;
+
+      // Verificar que matches sea un array y manejar casos donde matchedUser pueda ser undefined
+      const matchedUserIds = Array.isArray(matches)
+        ? matches
+          .filter(match => match && match.matchedUser && match.matchedUser._id) // Filtrar matches válidos
+          .map(match => match.matchedUser._id)
+        : [];
+
+      const filteredUsers = allUsers.filter(user => {
+        // Verificar que user existe y tiene las propiedades necesarias
+        if (!user || !user._id || !user.gender) {
+          return false;
+        }
+
+        return (
+          user._id !== loggedUserId &&
+          !matchedUserIds.includes(user._id) &&
+          Array.isArray(loggedUser.preferences) &&
+          loggedUser.preferences.includes(user.gender)
+        );
+      });
 
       return filteredUsers;
     } catch (error) {
       console.error("Error filtering users:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack
+      });
       return [];
     }
   }
@@ -110,6 +141,40 @@ export default class UserRepository extends IUserRepository {
       return response.data;
     } catch (error) {
       console.error("sendMessage error:", error);
+      throw error;
+    }
+  }
+  async getCountries() {
+    try {
+      console.log("🌍 Fetching countries");
+      const response = await api.get("/locations/countries");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+      throw error;
+    }
+  }
+
+  // Obtener estados de un país específico
+  async getStatesByCountry(countryId) {
+    try {
+      console.log("🏛️ Fetching states for country:", countryId);
+      const response = await api.get(`/locations/countries/${countryId}/states`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching states:", error);
+      throw error;
+    }
+  }
+
+  // Obtener ciudades de un estado específico
+  async getCitiesByState(stateId) {
+    try {
+      console.log("🏙️ Fetching cities for state:", stateId);
+      const response = await api.get(`/locations/states/${stateId}/cities`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching cities:", error);
       throw error;
     }
   }
