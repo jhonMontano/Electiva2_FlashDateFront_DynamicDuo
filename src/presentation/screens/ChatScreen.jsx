@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, StyleSheet} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import UserRepository from '../../infraestructure/api/UserRepository';
 import { getUserIdFromToken } from '../../shared/decodeToken';
@@ -22,45 +22,37 @@ export default function ChatScreen() {
         const id = await getUserIdFromToken();
         setUserId(id);
         const token = await AsyncStorage.getItem('token');
+
         const data = await userRepository.getMatchesByUserId(id, token);
-        
         const readMessagesData = await AsyncStorage.getItem(`readMessages_${id}`);
         const readMessagesSet = readMessagesData ? new Set(JSON.parse(readMessagesData)) : new Set();
         setReadMessages(readMessagesSet);
-        
+
         const matchesWithMessages = await Promise.all(
           (data || []).map(async (match) => {
             try {
-              const messagesResponse = await fetch(`http://192.168.0.13:3000/api/messages/match_${match._id}`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              
-              if (messagesResponse.ok) {
-                const messages = await messagesResponse.json();
-                
-                const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-                
-                const unreadCount = messages.filter(msg => 
-                  msg.receiverId.toString() === id.toString() && 
-                  !readMessagesSet.has(msg._id.toString())
-                ).length;
-                
-                return {
-                  ...match,
-                  lastMessage: lastMessage ? {
+              const messages = await userRepository.getMessagesByMatchId(match._id, token);
+
+              const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+              const unreadCount = messages.filter(msg =>
+                msg.receiverId.toString() === id.toString() &&
+                !readMessagesSet.has(msg._id.toString())
+              ).length;
+
+              return {
+                ...match,
+                lastMessage: lastMessage
+                  ? {
                     content: lastMessage.content,
                     createdAt: lastMessage.createdAt,
-                    senderId: lastMessage.senderId
-                  } : null,
-                  unreadCount: unreadCount,
-                  totalMessages: messages.length
-                };
-              } else {
-                console.warn(`Error in match ${match._id}: ${messagesResponse.status}`);
-              }
-              return { ...match, lastMessage: null, unreadCount: 0, totalMessages: 0 };
+                    senderId: lastMessage.senderId,
+                  }
+                  : null,
+                unreadCount,
+                totalMessages: messages.length,
+              };
             } catch (error) {
-              console.error(`❌ Error fetching messages for match ${match._id}:`, error);
+              console.error(`Error fetching messages for match ${match._id}:`, error);
               return { ...match, lastMessage: null, unreadCount: 0, totalMessages: 0 };
             }
           })
@@ -92,50 +84,31 @@ export default function ChatScreen() {
   const markConversationAsRead = async (matchId) => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const messagesResponse = await fetch(`http://192.168.0.13:3000/api/messages/${matchId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      if (messagesResponse.ok) {
-        const messages = await messagesResponse.json();
-        const receivedMessageIds = messages
-          .filter(msg => msg.receiverId.toString() === userId.toString())
-          .map(msg => msg._id.toString());
-        
-        const newReadMessages = new Set([...readMessages, ...receivedMessageIds]);
-        setReadMessages(newReadMessages);
-        
-        await AsyncStorage.setItem(
-          `readMessages_${userId}`, 
-          JSON.stringify([...newReadMessages])
-        );
-        
-        setMatches(prevMatches => 
-          prevMatches.map(match => 
-            match._id === matchId 
-              ? { ...match, unreadCount: 0 }
-              : match
-          )
-        );
-        
-      }
+      const messages = await userRepository.getMessages(matchId, token);
+
+      const receivedMessageIds = messages
+        .filter(msg => msg.receiverId.toString() === userId.toString())
+        .map(msg => msg._id.toString());
+
+      const newReadMessages = new Set([...readMessages, ...receivedMessageIds]);
+      setReadMessages(newReadMessages);
+
+      await AsyncStorage.setItem(`readMessages_${userId}`, JSON.stringify([...newReadMessages]));
+
+      setMatches(prevMatches =>
+        prevMatches.map(match =>
+          match._id === matchId ? { ...match, unreadCount: 0 } : match
+        )
+      );
     } catch (error) {
       console.error('Error marking conversation as read:', error);
     }
   };
 
   const openConversation = (match) => {
-    if (!userId) {
-      console.warn(' No userId available');
-      return;
-    }
-
+    if (!userId) return console.warn('No userId available');
     const matchedUser = match.users.find(u => u._id !== userId);
-
-    if (!matchedUser) {
-      console.warn('No matched user found for match:', match);
-      return;
-    }
+    if (!matchedUser) return console.warn('No matched user found');
 
     if (match.unreadCount > 0) {
       markConversationAsRead(match._id);
@@ -149,22 +122,21 @@ export default function ChatScreen() {
 
   const formatTime = (dateString) => {
     if (!dateString) return '';
-    
     const messageDate = new Date(dateString);
     const now = new Date();
     const diffInHours = (now - messageDate) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 24) {
-      return messageDate.toLocaleTimeString('es-ES', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
+      return messageDate.toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
       });
     } else if (diffInHours < 24 * 7) {
       return messageDate.toLocaleDateString('es-ES', { weekday: 'short' });
     } else {
-      return messageDate.toLocaleDateString('es-ES', { 
-        day: '2-digit', 
-        month: '2-digit' 
+      return messageDate.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
       });
     }
   };
@@ -196,66 +168,34 @@ export default function ChatScreen() {
             </View>
           )}
         </View>
-        
         <View style={styles.messageInfo}>
-          <View style={styles.nameTimeContainer}>
-            <Text style={[styles.name, hasUnreadMessages && styles.boldName]}>
-              {matchedUser?.name || 'Sin nombre'}
-            </Text>
-            {item.lastMessage && (
-              <Text style={styles.time}>
-                {formatTime(item.lastMessage.createdAt)}
-              </Text>
-            )}
-          </View>
-          
-          {item.lastMessage ? (
-            <View style={styles.messageContainer}>
-              <Text style={[
-                styles.lastMessage, 
-                hasUnreadMessages && styles.boldMessage
-              ]}>
-                {isLastMessageFromMe ? 'Tú: ' : ''}
-                {truncateMessage(item.lastMessage.content)}
-              </Text>
-              <Text style={styles.messageCounter}>
-                {item.totalMessages} message{item.totalMessages !== 1 ? 's' : ''}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.noMessages}>
-              ¡Start the conversation!
-            </Text>
-          )}
+          <Text style={styles.name}>{matchedUser?.name}</Text>
+          <Text style={styles.messagePreview}>
+            {isLastMessageFromMe ? 'You: ' : ''}
+            {truncateMessage(item.lastMessage?.content)}
+          </Text>
         </View>
+        <Text style={styles.time}>
+          {formatTime(item.lastMessage?.createdAt)}
+        </Text>
       </TouchableOpacity>
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ff3366" />
-        <Text style={styles.loadingText}>Loading chats...</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: '#fff' }}>
-      <Text style={styles.title}>Chats</Text>
-      {matches.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>You have no active conversations.</Text>
-          <Text style={styles.emptySubText}>When you have matches, they will appear here.</Text>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Chat</Text>
+      </View>
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#FF3C38" />
       ) : (
         <FlatList
           data={matches}
-          keyExtractor={(item) => item._id} 
+          keyExtractor={(item) => item._id}
           renderItem={renderItem}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={{ paddingBottom: 20 }}
         />
       )}
     </View>
@@ -263,111 +203,63 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: -10,
-    color: '#333',
-    padding: 30
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  emptyText: {
-    fontSize: 18,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  emptySubText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
   chatItem: {
     flexDirection: 'row',
-    paddingVertical: 15,
     alignItems: 'center',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
   },
-  separator: {
-    height: 1,
-    backgroundColor: '#f0f0f0',
-    marginLeft: 84,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 15,
-  },
-  avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-  },
+  avatarContainer: { position: 'relative' },
+  avatar: { width: 60, height: 60, borderRadius: 30, marginRight: 12 },
   unreadBadge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: '#ff3366',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
-    justifyContent: 'center',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF3C38',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 20,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'white',
   },
-  unreadText: {
-    color: 'white',
-    fontSize: 11,
-    fontWeight: 'bold',
+  unreadText: { 
+    color: 'white', 
+    fontSize: 12, 
+    fontWeight: 'bold' 
   },
-  messageInfo: {
+  messageInfo: { 
+    flex: 1 
+  },
+  name: { 
+    fontSize: 16,
+    fontWeight: 'bold' 
+  },
+  messagePreview: { 
+    fontSize: 14, 
+    color: '#555', 
+    marginTop: 4 
+  },
+  time: { fontSize: 12, 
+    color: '#888' 
+  },
+  container: {
     flex: 1,
+    backgroundColor: '#fff',
+    paddingTop: 50,
   },
-  nameTimeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 5,
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  name: {
-    fontSize: 17,
-    fontWeight: '600',
-    flex: 1,
-    color: '#333',
-  },
-  boldName: {
+  headerTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
-  },
-  time: {
-    fontSize: 12,
-    color: '#999',
-  },
-  lastMessage: {
-    fontSize: 15,
-    color: '#666',
-    lineHeight: 20,
-  },
-  boldMessage: {
-    fontWeight: '600',
     color: '#333',
-  },
-  noMessages: {
-    fontSize: 15,
-    color: '#999',
-    fontStyle: 'italic',
+    textAlign: 'left',
   },
 });

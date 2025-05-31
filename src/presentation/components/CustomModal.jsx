@@ -15,7 +15,6 @@ export default function CustomModal({ visible, title, message, onClose, children
           <Text style={styles.modalTitle}>{title}</Text>
           {message && <Text style={styles.modalText}>{message}</Text>}
           
-          {/* Este es el contenedor para el contenido hijo (children) */}
           <View style={styles.childrenContainer}>
             {children}
           </View>

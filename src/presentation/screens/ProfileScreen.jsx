@@ -35,11 +35,9 @@ export default function ProfileScreen({ navigation }) {
     const fetchData = async () => {
       try {
         const userId = user?._id || user?.id;
-        console.log("User desde contexto:", user);
-        console.log("ID del usuario:", userId);
 
         if (!userId) {
-          showModal('Error', 'No se encontró el ID del usuario');
+          showModal('Error', 'User not found');
           return;
         }
 
@@ -59,7 +57,6 @@ export default function ProfileScreen({ navigation }) {
         });
 
       } catch (error) {
-        console.log('Error loading user:', error);
         showModal('Error', 'Error loading profile data');
       } finally {
         setLoading(false);
@@ -69,7 +66,6 @@ export default function ProfileScreen({ navigation }) {
     if (user && (user._id || user.id)) {
       fetchData();
     } else {
-      console.log("User not found in the context");
       setLoading(false);
     }
   }, [user]);
@@ -96,7 +92,6 @@ export default function ProfileScreen({ navigation }) {
   const handleLogout = async () => {
     try {
       await logout();
-      console.log("Token removed. Redirecting to Login...");
     } catch (error) {
       console.error("Logout error:", error);
     }

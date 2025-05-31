@@ -7,19 +7,6 @@ import { getUserIdFromToken } from '../../shared/decodeToken';
 
 const userRepository = new UserRepository();
 
-const styles = StyleSheet.create({
-  homeTitle: {
-    textAlign: 'left',
-    marginTop: 20,
-    zIndex: 10,
-  },
-  cardContainer: {
-    flex: 1,
-    justifyContent: 'right',
-    alignItems: 'center',
-  },
-});
-
 export default function HomeScreen() {
   const [loggedUserId, setLoggedUserId] = useState(null);
   const [profiles, setProfiles] = useState([]);
@@ -112,3 +99,16 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  homeTitle: {
+    textAlign: 'left',
+    marginTop: 20,
+    zIndex: 10,
+  },
+  cardContainer: {
+    flex: 1,
+    justifyContent: 'right',
+    alignItems: 'center',
+  },
+});

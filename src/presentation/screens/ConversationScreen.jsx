@@ -4,11 +4,13 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSocketConnection } from '../../infraestructure/socket/socket';
 import { getUserIdFromToken } from '../../shared/decodeToken';
+import UserRepository from '../../infraestructure/api/UserRepository';
 
 export default function ConversationScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const flatListRef = useRef(null);
+  const userRepository = useRef(new UserRepository()).current;
 
   const { matchId, matchedUser } = route.params;
   const { socket, isConnected, userId: socketUserId } = useSocketConnection();
@@ -26,7 +28,7 @@ export default function ConversationScreen() {
     try {
       await AsyncStorage.setItem(cacheKey, JSON.stringify(messagesArray));
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error saving messages to cache:', error);
     }
   };
 
@@ -39,7 +41,7 @@ export default function ConversationScreen() {
         return parsedMessages;
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error loading messages from cache:', error);
     }
     return [];
   };
@@ -86,42 +88,34 @@ export default function ConversationScreen() {
         }
       }
 
-      const token = await AsyncStorage.getItem('token');
-      const response = await fetch(`http://192.168.0.13:3000/api/messages/match_${matchId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const existingMessages = await userRepository.getMessagesByMatchId(matchId);
 
-      if (response.ok) {
-        const existingMessages = await response.json();
+      const formattedMessages = existingMessages
+        .map((msg) => ({
+          content: msg.content,
+          from: msg.senderId,
+          to: msg.receiverId,
+          fromSelf: msg.senderId.toString() === id.toString(),
+          createdAt: msg.createdAt,
+          roomId: msg.roomId,
+          _id: msg._id,
+        }))
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-        const formattedMessages = existingMessages
-          .map((msg) => ({
-            content: msg.content,
-            from: msg.senderId,
-            to: msg.receiverId,
-            fromSelf: msg.senderId.toString() === id.toString(),
-            createdAt: msg.createdAt,
-            roomId: msg.roomId,
-            _id: msg._id,
-          }))
-          .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      setMessages(formattedMessages);
 
-        setMessages(formattedMessages);
-
-        if (id) {
-          await saveMessagesToCache(formattedMessages);
-        }
-
-        setTimeout(() => {
-          if (flatListRef.current && formattedMessages.length > 0) {
-            flatListRef.current.scrollToEnd({ animated: false });
-          }
-        }, 100);
-      } else {
-        console.error('Error:', response.status);
+      if (id) {
+        await saveMessagesToCache(formattedMessages);
       }
+
+      setTimeout(() => {
+        if (flatListRef.current && formattedMessages.length > 0) {
+          flatListRef.current.scrollToEnd({ animated: false });
+        }
+      }, 100);
+
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error loading messages:', error);
     }
   };
 
@@ -132,6 +126,7 @@ export default function ConversationScreen() {
         setUserId(id);
         await loadMessages(id);
       } catch (error) {
+        console.error('Error initializing user:', error);
       } finally {
         setIsLoading(false);
       }
@@ -144,7 +139,6 @@ export default function ConversationScreen() {
     if (!socket || !userId) return;
 
     const handlePrivateMessage = (msg) => {
-
       if (msg.roomId === roomId) {
         const newMessage = {
           content: msg.content,
@@ -165,6 +159,7 @@ export default function ConversationScreen() {
     };
 
     const handleDisconnect = () => {
+      console.log('Socket disconnected');
     };
 
     socket.on('privateMessage', handlePrivateMessage);
@@ -190,24 +185,17 @@ export default function ConversationScreen() {
             const readMessagesData = await AsyncStorage.getItem(`readMessages_${userId}`);
             const readMessagesSet = readMessagesData ? new Set(JSON.parse(readMessagesData)) : new Set();
 
-            const token = await AsyncStorage.getItem('token');
-            const response = await fetch(`http://192.168.0.13:3000/api/messages/match_${matchId}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
+            const allMessages = await userRepository.getMessagesByMatchId(matchId);
+            const receivedMessageIds = allMessages
+              .filter(msg => msg.receiverId.toString() === userId.toString())
+              .map(msg => msg._id.toString());
 
-            if (response.ok) {
-              const allMessages = await response.json();
-              const receivedMessageIds = allMessages
-                .filter(msg => msg.receiverId.toString() === userId.toString())
-                .map(msg => msg._id.toString());
+            receivedMessageIds.forEach(id => readMessagesSet.add(id));
 
-              receivedMessageIds.forEach(id => readMessagesSet.add(id));
-
-              await AsyncStorage.setItem(
-                `readMessages_${userId}`,
-                JSON.stringify([...readMessagesSet])
-              );
-            }
+            await AsyncStorage.setItem(
+              `readMessages_${userId}`,
+              JSON.stringify([...readMessagesSet])
+            );
           } catch (error) {
             console.error('Error marking messages as read:', error);
           }
@@ -251,57 +239,43 @@ export default function ConversationScreen() {
     setInputMessage('');
 
     try {
-      const token = await AsyncStorage.getItem('token');
-      const response = await fetch('http://192.168.0.13:3000/api/messages/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(messageData),
+      const savedMessage = await userRepository.sendMessage(messageData);
+
+      setMessages((prev) => {
+        const updated = prev.map(msg =>
+          msg._id === tempId
+            ? {
+              content: savedMessage.content,
+              from: savedMessage.senderId,
+              to: savedMessage.receiverId,
+              fromSelf: true,
+              roomId: savedMessage.roomId,
+              createdAt: savedMessage.createdAt,
+              _id: savedMessage._id,
+            }
+            : msg
+        );
+
+        saveMessagesToCache(updated);
+        return updated;
       });
 
-      if (response.ok) {
-        const savedMessage = await response.json();
+      if (socket && isConnected) {
+        const socketMessage = {
+          ...messageData,
+          from: userId,
+          to: matchedUser._id,
+          createdAt: savedMessage.createdAt,
+          _id: savedMessage._id,
+        };
 
-        setMessages((prev) => {
-          const updated = prev.map(msg =>
-            msg._id === tempId
-              ? {
-                content: savedMessage.content,
-                from: savedMessage.senderId,
-                to: savedMessage.receiverId,
-                fromSelf: true,
-                roomId: savedMessage.roomId,
-                createdAt: savedMessage.createdAt,
-                _id: savedMessage._id,
-              }
-              : msg
-          );
-
-          saveMessagesToCache(updated);
-          return updated;
-        });
-
-        if (socket && isConnected) {
-          const socketMessage = {
-            ...messageData,
-            from: userId,
-            to: matchedUser._id,
-            createdAt: savedMessage.createdAt,
-            _id: savedMessage._id,
-          };
-
-          socket.emit('privateMessage', socketMessage);
-        } else {
-          console.warn('Socket no conect');
-        }
-
+        socket.emit('privateMessage', socketMessage);
       } else {
-        throw new Error(`HTTP ${response.status}`);
+        console.warn('Socket not connected');
       }
+
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error sending message:', error);
 
       setMessages((prev) => {
         const updated = prev.filter(msg => msg._id !== tempId);
@@ -374,7 +348,7 @@ export default function ConversationScreen() {
             {item.content}
           </Text>
           {item.isTemporary && (
-            <Text style={styles.sendingText}>Enviando...</Text>
+            <Text style={styles.sendingText}>Sending...</Text>
           )}
         </View>
       </View>
@@ -384,7 +358,7 @@ export default function ConversationScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Cargando conversación...</Text>
+        <Text style={styles.loadingText}>Loading conversation...</Text>
       </View>
     );
   }

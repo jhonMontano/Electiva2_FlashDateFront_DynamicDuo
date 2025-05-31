@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Import corregido
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
 import Icon from 'react-native-vector-icons/Ionicons';
 
 import HomeScreen from '../screens/HomeScreen';
@@ -19,7 +19,6 @@ const Tab = createBottomTabNavigator();
 const ChatStack = createNativeStackNavigator();
 const userRepository = new UserRepository();
 
-// Stack Navigator para Chat que incluye ConversationScreen
 function ChatStackNavigator() {
   return (
     <ChatStack.Navigator screenOptions={{ headerShown: false }}>
@@ -33,7 +32,6 @@ export default function BottomTabsNavigator() {
   const [hasNewMatch, setHasNewMatch] = useState(false);
   const socket = useSocket();
 
-  // Verificar si hay matches nuevos no vistos al iniciar
   useEffect(() => {
     const checkInitialMatches = async () => {
       try {
@@ -48,14 +46,13 @@ export default function BottomTabsNavigator() {
 
         setHasNewMatch(unseen);
       } catch (error) {
-        console.error('❌ Error revisando nuevos matches:', error.message);
+        console.error('Error checking new matches:', error.message);
       }
     };
 
     checkInitialMatches();
   }, []);
 
-  // Escuchar eventos socket para nuevos matches en tiempo real
   useEffect(() => {
     let isMounted = true;
 
@@ -68,7 +65,6 @@ export default function BottomTabsNavigator() {
 
       socket.on('newMatch', (data) => {
         if (isMounted) {
-          console.log('🔥 Nuevo match recibido vía socket:', data);
           setHasNewMatch(true);
         }
       });

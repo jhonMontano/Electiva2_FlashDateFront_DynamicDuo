@@ -1,19 +1,10 @@
 import React, { useState } from "react";
-import {
-  Platform,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Button,
-  View,
-} from "react-native";
+import { Platform, Text, TextInput, TouchableOpacity, ScrollView, Button, View, } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { globalStyles } from "../../shared/globalStyles";
 import UserRepository from "../../infraestructure/api/UserRepository";
 import CustomModal from "../components/CustomModal";
 import { Picker } from '@react-native-picker/picker';
-
 
 let DatePickerWeb;
 if (Platform.OS === "web") {
@@ -71,7 +62,7 @@ export default function RegisterScreen({ navigation }) {
       return false;
     }
     if (!validateAge(birthday)) {
-      showModal("Edad insuficiente", "Debes tener al menos 18 años para registrarte.");
+      showModal("insufficient age", "You must be at least 18 years old to register.");
       return false;
     }
 
@@ -117,7 +108,7 @@ export default function RegisterScreen({ navigation }) {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      console.error("❌ Error al registrar:", error);
+      console.error(" Error al registrar:", error);
       showModal("Error", errorMessage);
     }
   };
@@ -226,7 +217,7 @@ export default function RegisterScreen({ navigation }) {
       <View style={globalStyles.container}>
         <Button title="Add profile photos" onPress={openPhotoModal} />
         {profilePhotos.length > 0 && (
-          <Text style={{ marginTop: 10 }}>URLs agregadas: {profilePhotos.length}</Text>
+          <Text style={{ marginTop: 10 }}>URLs added: {profilePhotos.length}</Text>
         )}
       </View>
 

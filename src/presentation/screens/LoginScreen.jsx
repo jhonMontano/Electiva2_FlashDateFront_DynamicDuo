@@ -23,11 +23,11 @@ export default function LoginScreen({ navigation }) {
       const repo = new UserRepository();
       const response = await repo.login(email, password);
 
-      login(response.data.user, response.data.token); 
+      login(response.data.user, response.data.token);
       console.log('Rsponse', response);
 
     } catch (error) {
-      let errorMessage = "Ocurrió un error al iniciar sesión";
+      let errorMessage = "An error occurred while logging in.";
 
       if (error.response?.status === 422) {
         errorMessage = "Invalid credentials. Verify your email and password.";
@@ -44,8 +44,14 @@ export default function LoginScreen({ navigation }) {
   return (
     <ImageBackground source={backgroundImage} style={globalStyles.background}>
       <View style={globalStyles.overlay}>
-        <Text style={globalStyles.title}>🔥 FlashDate 🔥</Text>
-
+        <Text style={{
+          textAlign: 'center',
+          fontSize: 50,
+          fontFamily: 'serif',
+          color: 'white'
+        }}>
+          FlashDate
+        </Text>
         <TextInput
           placeholder="Email"
           value={email}
