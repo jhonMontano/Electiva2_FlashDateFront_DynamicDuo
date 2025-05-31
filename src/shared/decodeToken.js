@@ -8,7 +8,6 @@ export const getUserIdFromToken = async () => {
         const decode = jwtDecode(token);
         return decode.userId || decode.id || decode._id;
     } catch (error) {
-        console.log('❌ Error decoding token:', error);
         return null;
     }
 };

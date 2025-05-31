@@ -12,6 +12,5 @@ export default class Register {
     this.description = description;
     this.profilePhoto = Array.isArray(profilePhoto) ? profilePhoto : [profilePhoto];
 
-    console.log("🔧 Register class initialized:", this);
   }
 }

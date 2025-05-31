@@ -16,11 +16,9 @@ export const AuthProvider = ({ children }) => {
 
                 if (storedUser && storedToken && storedToken !== "null") {
                     setUser(JSON.parse(storedUser));
-                    console.log("User uploaded", JSON.parse(storedUser));
                     setToken(storedToken);
                 }
             } catch (error) {
-                console.log("Error cargando usuario: ", error);
                 }finally {
                     setLoading(false);
                 }    
@@ -31,7 +29,6 @@ export const AuthProvider = ({ children }) => {
 
         const login = async (userData, jwtToken) => {
             setUser(userData);
-            console.log("🔐 Login guardado:", userData);
             setToken(jwtToken);
 
             await AsyncStorage.setItem('user', JSON.stringify(userData));
