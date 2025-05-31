@@ -37,16 +37,56 @@ export default function BottomTabsNavigator() {
       try {
         const id = await getUserIdFromToken();
         const token = await AsyncStorage.getItem('token');
+        
+        if (!token) {
+          console.warn('No token found');
+          return;
+        }
+
         const matches = await userRepository.getMatchesByUserId(id, token);
 
+        if (!Array.isArray(matches)) {
+          console.warn('Matches is not an array:', matches);
+          return;
+        }
+
         const lastSeen = await AsyncStorage.getItem('lastSeenMatches');
-        const unseen = matches.some(
-          (match) => new Date(match.createdAt) > new Date(lastSeen)
-        );
+        
+        if (!lastSeen) {
+          setHasNewMatch(matches.length > 0);
+          return;
+        }
+
+        const lastSeenDate = new Date(lastSeen);
+        
+        if (isNaN(lastSeenDate.getTime())) {
+          console.warn('Invalid lastSeen date:', lastSeen);
+          setHasNewMatch(matches.length > 0);
+          return;
+        }
+
+        const unseen = matches.some((match) => {
+          if (!match.createdAt) {
+            console.warn('Match without createdAt:', match);
+            return false;
+          }
+          
+          const matchDate = new Date(match.createdAt);
+          
+          if (isNaN(matchDate.getTime())) {
+            console.warn('Invalid match date:', match.createdAt);
+            return false;
+          }
+          
+          return matchDate > lastSeenDate;
+        });
 
         setHasNewMatch(unseen);
       } catch (error) {
         console.error('Error checking new matches:', error.message);
+        console.error('Full error:', error);
+        
+        setHasNewMatch(false);
       }
     };
 
@@ -59,15 +99,25 @@ export default function BottomTabsNavigator() {
     const setupListeners = async () => {
       if (!socket) return;
 
-      const id = await getUserIdFromToken();
-
-      socket.emit('JoinRoom', { roomId: id });
-
-      socket.on('newMatch', (data) => {
-        if (isMounted) {
-          setHasNewMatch(true);
+      try {
+        const id = await getUserIdFromToken();
+        
+        if (!id) {
+          console.warn('No user ID found');
+          return;
         }
-      });
+
+        socket.emit('JoinRoom', { roomId: id });
+
+        socket.on('newMatch', (data) => {
+          console.log('New match received:', data);
+          if (isMounted) {
+            setHasNewMatch(true);
+          }
+        });
+      } catch (error) {
+        console.error('Error setting up socket listeners:', error);
+      }
     };
 
     setupListeners();
@@ -99,6 +149,8 @@ export default function BottomTabsNavigator() {
             case 'Profile':
               iconName = 'person-outline';
               break;
+            default:
+              iconName = 'help-outline';
           }
           return <Icon name={iconName} size={size} color={color} />;
         },

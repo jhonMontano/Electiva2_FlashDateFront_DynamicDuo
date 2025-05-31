@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import SwipeCard from '../../presentation/components/SwipeCard';
-import { globalStyles } from '../../shared/globalStyles';
 import UserRepository from '../../infraestructure/api/UserRepository';
 import { getUserIdFromToken } from '../../shared/decodeToken';
 
@@ -65,20 +64,31 @@ export default function HomeScreen() {
   };
 
   if (loading || !loggedUserId) {
-    return <ActivityIndicator size="large" color="#f26b6b" style={{ flex: 1 }} />;
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF3C38" />
+      </View>
+    );
   }
 
   if (currentIndex >= profiles.length) {
     return (
-      <View style={globalStyles.container}>
-        <Text>There are no more profiles for now.</Text>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Home</Text>
+        </View>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>There are no more profiles for now.</Text>
+        </View>
       </View>
     );
   }
 
   return (
-    <View style={globalStyles.container}>
-      <Text style={[globalStyles.title, styles.homeTitle]}>Home</Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Home</Text>
+      </View>
       <View style={styles.cardContainer}>
         {profiles
           .slice(currentIndex)
@@ -101,14 +111,45 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  homeTitle: {
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
     textAlign: 'left',
-    marginTop: 20,
-    zIndex: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#888',
+    textAlign: 'center',
   },
   cardContainer: {
     flex: 1,
-    justifyContent: 'right',
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 20,
   },
 });

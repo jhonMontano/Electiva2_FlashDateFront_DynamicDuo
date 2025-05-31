@@ -23,7 +23,8 @@ export default function ProfileScreen({ navigation }) {
     country: '',
     state: '',
     city: '',
-    profilePhoto: ''
+    profilePhoto: '',
+    description: ''
   });
 
   const showModal = (title, message) => {
@@ -53,7 +54,8 @@ export default function ProfileScreen({ navigation }) {
           country: userData.location?.country || '',
           state: userData.location?.state || '',
           city: userData.location?.city || '',
-          profilePhoto: userData.profilePhoto?.[0] || ''
+          profilePhoto: userData.profilePhoto?.[0] || '',
+          description: userData.description || ''
         });
 
       } catch (error) {
@@ -184,10 +186,14 @@ export default function ProfileScreen({ navigation }) {
         value={formData.city}
         onChangeText={text => setFormData({ ...formData, city: text })}
       />
-
-      <TouchableOpacity style={globalStyles.button} onPress={handleSaveChanges}>
-        <Text style={globalStyles.buttonText}>Apply changes</Text>
-      </TouchableOpacity>
+      <TextInput
+        style={[globalStyles.input, { height: 100, textAlignVertical: 'top' }]}
+        placeholder="Description"
+        value={formData.description}
+        onChangeText={text => setFormData({ ...formData, description: text })}
+        multiline
+        numberOfLines={4}
+      />
 
       <CustomModal
         visible={modalVisible}

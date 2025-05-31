@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, Image, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { globalStyles } from '../../shared/globalStyles';
 import { getUserIdFromToken } from '../../shared/decodeToken';
 import UserRepository from '../../infraestructure/api/UserRepository';
 import { useIsFocused } from '@react-navigation/native';
@@ -41,59 +40,103 @@ export default function NotificationsScreen() {
     return (
       <View style={styles.matchCard}>
         <Image
-          source={{ uri: matchedUser?.profilePhoto?.[0] }}
+          source={{ uri: matchedUser?.profilePhoto?.[0] || 'https://via.placeholder.com/60' }}
           style={styles.avatar}
         />
-        <Text style={styles.name}>{matchedUser?.name}</Text>
+        <View style={styles.matchInfo}>
+          <Text style={styles.name}>{matchedUser?.name} {matchedUser?.lastName}</Text>
+          <Text style={styles.matchMessage}>
+            ¡You matched with {matchedUser?.name || 'someone special'}!
+          </Text>
+          <Text style={styles.matchSubtext}>Now you can start chatting</Text>
+        </View>
       </View>
     );
   };
 
-  if (loading) {
-    return <ActivityIndicator size="large" color="#ff3366" style={{ marginTop: 40 }} />;
-  }
-
   return (
-    <View style={globalStyles.container}>
-      <Text style={globalStyles.title}>Notifications</Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Notifications</Text>
+      </View>
 
-      {matches.length === 0 ? (
-        <Text style={{ marginTop: 20 }}>You don't have any new matches yet</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color="#FF3C38" />
       ) : (
-        <FlatList
-          data={matches}
-          keyExtractor={(item, index) => item._id || index.toString()}
-          renderItem={renderMatch}
-        />
+        <>
+          {matches.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>You don't have any new matches yet</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={matches}
+              keyExtractor={(item, index) => item._id || index.toString()}
+              renderItem={renderMatch}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            />
+          )}
+        </>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'left',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#888',
+    textAlign: 'center',
+  },
   matchCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
     backgroundColor: '#fff',
-    borderRadius: 12,
-    marginVertical: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
   },
   avatar: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    marginRight: 16,
+    marginRight: 12,
   },
-  name: {
+  matchInfo: {
+    flex: 1,
+  },
+  matchMessage: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#000000',
+    marginBottom: 2,
+  },
+  matchSubtext: {
+    fontSize: 14,
+    color: '#666',
   },
 });

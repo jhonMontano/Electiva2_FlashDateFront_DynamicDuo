@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Platform, Text, TextInput, TouchableOpacity, ScrollView, Button, View, } from "react-native";
+import React, { useState, useEffect } from "react";
+import { Platform, Text, TextInput, TouchableOpacity, ScrollView, Button, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { globalStyles } from "../../shared/globalStyles";
 import UserRepository from "../../infraestructure/api/UserRepository";
@@ -12,6 +12,150 @@ if (Platform.OS === "web") {
   require("react-datepicker/dist/react-datepicker.css");
 }
 
+const locationData = {
+  countries: [
+    { code: "CO", name: "Colombia" },
+    { code: "US", name: "United States" },
+    { code: "MX", name: "Mexico" },
+    { code: "BR", name: "Brazil" },
+    { code: "AR", name: "Argentina" },
+    { code: "PE", name: "Peru" },
+    { code: "CL", name: "Chile" },
+    { code: "EC", name: "Ecuador" },
+    { code: "VE", name: "Venezuela" },
+    { code: "ES", name: "Spain" }
+  ],
+  states: {
+    CO: [
+      { code: "ANT", name: "Antioquia" },
+      { code: "CUN", name: "Cundinamarca" },
+      { code: "VAL", name: "Valle del Cauca" },
+      { code: "ATL", name: "Atlántico" },
+      { code: "BOL", name: "Bolívar" },
+      { code: "SAN", name: "Santander" },
+      { code: "CAL", name: "Caldas" },
+      { code: "TOL", name: "Tolima" }
+    ],
+    US: [
+      { code: "CA", name: "California" },
+      { code: "TX", name: "Texas" },
+      { code: "FL", name: "Florida" },
+      { code: "NY", name: "New York" },
+      { code: "IL", name: "Illinois" },
+      { code: "PA", name: "Pennsylvania" }
+    ],
+    MX: [
+      { code: "JAL", name: "Jalisco" },
+      { code: "NL", name: "Nuevo León" },
+      { code: "DF", name: "Ciudad de México" },
+      { code: "QRO", name: "Querétaro" },
+      { code: "YUC", name: "Yucatán" }
+    ],
+    BR: [
+      { code: "SP", name: "São Paulo" },
+      { code: "RJ", name: "Rio de Janeiro" },
+      { code: "MG", name: "Minas Gerais" },
+      { code: "BA", name: "Bahia" },
+      { code: "PR", name: "Paraná" }
+    ],
+    AR: [
+      { code: "BA", name: "Buenos Aires" },
+      { code: "COR", name: "Córdoba" },
+      { code: "SF", name: "Santa Fe" },
+      { code: "MEN", name: "Mendoza" }
+    ],
+    PE: [
+      { code: "LIM", name: "Lima" },
+      { code: "ARE", name: "Arequipa" },
+      { code: "LAL", name: "La Libertad" },
+      { code: "CUS", name: "Cusco" }
+    ],
+    CL: [
+      { code: "RM", name: "Región Metropolitana" },
+      { code: "VAL", name: "Valparaíso" },
+      { code: "BIO", name: "Biobío" },
+      { code: "ARA", name: "Araucanía" }
+    ],
+    EC: [
+      { code: "PIC", name: "Pichincha" },
+      { code: "GUA", name: "Guayas" },
+      { code: "AZU", name: "Azuay" },
+      { code: "MAN", name: "Manabí" }
+    ],
+    VE: [
+      { code: "DC", name: "Distrito Capital" },
+      { code: "MIR", name: "Miranda" },
+      { code: "ZUL", name: "Zulia" },
+      { code: "CAR", name: "Carabobo" }
+    ],
+    ES: [
+      { code: "MD", name: "Madrid" },
+      { code: "CT", name: "Cataluña" },
+      { code: "AN", name: "Andalucía" },
+      { code: "VC", name: "Valencia" }
+    ]
+  },
+  cities: {
+    "CO-ANT": ["Medellín", "Bello", "Itagüí", "Envigado", "Sabaneta", "Rionegro", "Apartadó"],
+    "CO-CUN": ["Bogotá", "Soacha", "Chía", "Zipaquirá", "Facatativá", "Mosquera", "Fusagasugá"],
+    "CO-VAL": ["Cali", "Palmira", "Buenaventura", "Tuluá", "Cartago", "Buga", "Jamundí"],
+    "CO-ATL": ["Barranquilla", "Soledad", "Malambo", "Puerto Colombia", "Galapa"],
+    "CO-BOL": ["Cartagena", "Magangué", "Turbaco", "Arjona", "El Carmen de Bolívar"],
+    "CO-SAN": ["Bucaramanga", "Floridablanca", "Girón", "Piedecuesta", "Barrancabermeja"],
+    "CO-CAL": ["Manizales", "La Dorada", "Chinchiná", "Villamaría", "Riosucio"],
+    "CO-TOL": ["Ibagué", "Espinal", "Melgar", "Honda", "Líbano"],
+
+    "US-CA": ["Los Angeles", "San Francisco", "San Diego", "Sacramento", "Oakland", "Fresno"],
+    "US-TX": ["Houston", "Dallas", "Austin", "San Antonio", "Fort Worth", "El Paso"],
+    "US-FL": ["Miami", "Orlando", "Tampa", "Jacksonville", "Fort Lauderdale", "Tallahassee"],
+    "US-NY": ["New York City", "Buffalo", "Rochester", "Syracuse", "Albany", "Yonkers"],
+    "US-IL": ["Chicago", "Aurora", "Rockford", "Joliet", "Naperville", "Springfield"],
+    "US-PA": ["Philadelphia", "Pittsburgh", "Allentown", "Erie", "Reading", "Scranton"],
+
+    "MX-JAL": ["Guadalajara", "Zapopan", "Tlaquepaque", "Tonalá", "Puerto Vallarta"],
+    "MX-NL": ["Monterrey", "Guadalupe", "San Nicolás", "Escobedo", "Apodaca"],
+    "MX-DF": ["Ciudad de México", "Ecatepec", "Nezahualcóyotl", "Tlalnepantla"],
+    "MX-QRO": ["Querétaro", "San Juan del Río", "Corregidora", "El Marqués"],
+    "MX-YUC": ["Mérida", "Kanasín", "Umán", "Progreso", "Valladolid"],
+
+    "BR-SP": ["São Paulo", "Guarulhos", "Campinas", "São Bernardo", "Santos"],
+    "BR-RJ": ["Rio de Janeiro", "Niterói", "Nova Iguaçu", "Duque de Caxias", "Petrópolis"],
+    "BR-MG": ["Belo Horizonte", "Uberlândia", "Contagem", "Juiz de Fora", "Betim"],
+    "BR-BA": ["Salvador", "Feira de Santana", "Vitória da Conquista", "Camaçari"],
+    "BR-PR": ["Curitiba", "Londrina", "Maringá", "Ponta Grossa", "Cascavel"],
+
+    "AR-BA": ["Buenos Aires", "La Plata", "Mar del Plata", "Quilmes", "Bahía Blanca"],
+    "AR-COR": ["Córdoba", "Villa María", "Río Cuarto", "San Francisco", "Carlos Paz"],
+    "AR-SF": ["Rosario", "Santa Fe", "Rafaela", "Venado Tuerto", "Reconquista"],
+    "AR-MEN": ["Mendoza", "San Rafael", "Godoy Cruz", "Luján de Cuyo", "Maipú"],
+
+    "PE-LIM": ["Lima", "Callao", "San Juan de Lurigancho", "Villa El Salvador", "Comas"],
+    "PE-ARE": ["Arequipa", "Cayma", "Cerro Colorado", "Paucarpata", "Mariano Melgar"],
+    "PE-LAL": ["Trujillo", "Chimbote", "Huamachuco", "Pacasmayo", "Santiago de Chuco"],
+    "PE-CUS": ["Cusco", "Wanchaq", "Santiago", "San Sebastián", "San Jerónimo"],
+
+    "CL-RM": ["Santiago", "Puente Alto", "Maipú", "Las Condes", "La Florida"],
+    "CL-VAL": ["Valparaíso", "Viña del Mar", "Villa Alemana", "Quilpué", "San Antonio"],
+    "CL-BIO": ["Concepción", "Talcahuano", "Chillán", "Los Ángeles", "Coronel"],
+    "CL-ARA": ["Temuco", "Villarrica", "Pucón", "Angol", "Nueva Imperial"],
+
+    "EC-PIC": ["Quito", "Cayambe", "Machachi", "Sangolquí", "Tabacundo"],
+    "EC-GUA": ["Guayaquil", "Durán", "Samborondón", "Daule", "Milagro"],
+    "EC-AZU": ["Cuenca", "Gualaceo", "Paute", "Girón", "Santa Isabel"],
+    "EC-MAN": ["Portoviejo", "Manta", "Chone", "Montecristi", "Jipijapa"],
+
+    "VE-DC": ["Caracas", "Petare", "Maracay", "Baruta", "Chacao"],
+    "VE-MIR": ["Los Teques", "Guarenas", "Guatire", "Charallave", "Cúa"],
+    "VE-ZUL": ["Maracaibo", "Cabimas", "Ciudad Ojeda", "Punto Fijo", "Machiques"],
+    "VE-CAR": ["Valencia", "Puerto Cabello", "Guacara", "Mariara", "San Diego"],
+
+    "ES-MD": ["Madrid", "Móstoles", "Alcalá de Henares", "Fuenlabrada", "Leganés"],
+    "ES-CT": ["Barcelona", "Hospitalet", "Terrassa", "Badalona", "Sabadell"],
+    "ES-AN": ["Sevilla", "Málaga", "Córdoba", "Granada", "Almería"],
+    "ES-VC": ["Valencia", "Alicante", "Elche", "Castellón", "Gandía"]
+  }
+};
+
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -21,9 +165,11 @@ export default function RegisterScreen({ navigation }) {
   const [gender, setGender] = useState("");
   const [description, setDescription] = useState("");
   const [preferences, setPreferences] = useState("");
-  const [country, setCountry] = useState("");
-  const [state, setState] = useState("");
-  const [city, setCity] = useState("");
+  
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  
   const [profilePhotos, setProfilePhotos] = useState([]);
   const [tempPhotoUrls, setTempPhotoUrls] = useState([""]);
 
@@ -33,10 +179,36 @@ export default function RegisterScreen({ navigation }) {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  const getAvailableStates = () => {
+    return selectedCountry ? locationData.states[selectedCountry] || [] : [];
+  };
+
+  const getAvailableCities = () => {
+    if (selectedCountry && selectedState) {
+      const cityKey = `${selectedCountry}-${selectedState}`;
+      return locationData.cities[cityKey] || [];
+    }
+    return [];
+  };
+
+  useEffect(() => {
+    if (selectedCountry) {
+      setSelectedState("");
+      setSelectedCity("");
+    }
+  }, [selectedCountry]);
+
+  useEffect(() => {
+    if (selectedState) {
+      setSelectedCity("");
+    }
+  }, [selectedState]);
+
   const showModal = (title, message) => {
     setModalMessage({ title, message });
     setModalVisible(true);
   };
+
   const validateAge = (birthDate) => {
     const today = new Date();
     const birth = new Date(birthDate);
@@ -52,7 +224,7 @@ export default function RegisterScreen({ navigation }) {
   };
 
   const validateFields = () => {
-    if (!name || !lastName || !birthday || !email || !password || !gender || !preferences || !country || !state || !city) {
+    if (!name || !lastName || !birthday || !email || !password || !gender || !preferences || !selectedCountry || !selectedState || !selectedCity) {
       showModal("Required fields", "Please complete all required fields.");
       return false;
     }
@@ -61,6 +233,7 @@ export default function RegisterScreen({ navigation }) {
       showModal("Invalid Email", "Please enter a valid email address.");
       return false;
     }
+    
     if (!validateAge(birthday)) {
       showModal("insufficient age", "You must be at least 18 years old to register.");
       return false;
@@ -84,6 +257,11 @@ export default function RegisterScreen({ navigation }) {
 
     try {
       const repo = new UserRepository();
+      
+      const countryName = locationData.countries.find(c => c.code === selectedCountry)?.name || selectedCountry;
+      const stateName = getAvailableStates().find(s => s.code === selectedState)?.name || selectedState;
+      const cityName = selectedCity;
+
       const userData = {
         name,
         lastName,
@@ -92,7 +270,11 @@ export default function RegisterScreen({ navigation }) {
         password,
         gender,
         preferences: preferences.split(",").map((pref) => pref.trim()),
-        location: { country, state, city },
+        location: { 
+          country: countryName, 
+          state: stateName, 
+          city: cityName 
+        },
         description,
         profilePhoto: profilePhotos,
       };
@@ -108,7 +290,7 @@ export default function RegisterScreen({ navigation }) {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      console.error(" Error al registrar:", error);
+      console.error("Error al registrar:", error);
       showModal("Error", errorMessage);
     }
   };
@@ -209,9 +391,59 @@ export default function RegisterScreen({ navigation }) {
         </View>
       </View>
 
-      <TextInput placeholder="Country" value={country} onChangeText={setCountry} style={globalStyles.input} />
-      <TextInput placeholder="State" value={state} onChangeText={setState} style={globalStyles.input} />
-      <TextInput placeholder="City" value={city} onChangeText={setCity} style={globalStyles.input} />
+      <View style={globalStyles.inputGroup}>
+        <Text style={globalStyles.label}>Country</Text>
+        <View style={{ ...globalStyles.pickerWrapper, height: Platform.OS === 'android' ? 50 : undefined }}>
+          <Picker
+            selectedValue={selectedCountry}
+            onValueChange={(itemValue) => setSelectedCountry(itemValue)}
+            style={globalStyles.picker}
+            mode="dropdown"
+          >
+            <Picker.Item label="Select Country" value="" />
+            {locationData.countries.map(country => (
+              <Picker.Item key={country.code} label={country.name} value={country.code} />
+            ))}
+          </Picker>
+        </View>
+      </View>
+
+      <View style={globalStyles.inputGroup}>
+        <Text style={globalStyles.label}>State</Text>
+        <View style={{ ...globalStyles.pickerWrapper, height: Platform.OS === 'android' ? 50 : undefined }}>
+          <Picker
+            selectedValue={selectedState}
+            onValueChange={(itemValue) => setSelectedState(itemValue)}
+            style={globalStyles.picker}
+            mode="dropdown"
+            enabled={selectedCountry !== ""}
+          >
+            <Picker.Item label={selectedCountry ? "Select State" : "Select Country First"} value="" />
+            {getAvailableStates().map(state => (
+              <Picker.Item key={state.code} label={state.name} value={state.code} />
+            ))}
+          </Picker>
+        </View>
+      </View>
+
+      <View style={globalStyles.inputGroup}>
+        <Text style={globalStyles.label}>City</Text>
+        <View style={{ ...globalStyles.pickerWrapper, height: Platform.OS === 'android' ? 50 : undefined }}>
+          <Picker
+            selectedValue={selectedCity}
+            onValueChange={(itemValue) => setSelectedCity(itemValue)}
+            style={globalStyles.picker}
+            mode="dropdown"
+            enabled={selectedState !== ""}
+          >
+            <Picker.Item label={selectedState ? "Select City" : "Select State First"} value="" />
+            {getAvailableCities().map(city => (
+              <Picker.Item key={city} label={city} value={city} />
+            ))}
+          </Picker>
+        </View>
+      </View>
+
       <TextInput placeholder="Description" value={description} onChangeText={setDescription} style={globalStyles.input} />
 
       <View style={globalStyles.container}>
